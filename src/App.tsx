@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { Analytics } from "@vercel/analytics/react";
 import Header from "./components/Header";
 import SpeciesFilter from "./components/SpeciesFilter";
 import LeftRail from "./components/LeftRail";
@@ -209,6 +210,7 @@ export default function App() {
           yearCounts={yearCounts}
         />
       </div>
+      <Analytics />
     </div>
   );
 }

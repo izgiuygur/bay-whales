@@ -1029,7 +1029,9 @@ body {
   display: none;
 }
 
-@media (max-width: 900px) {
+/* Only show on actual touch devices (phones/tablets), not on resized desktop browsers.
+   `hover: none` + `pointer: coarse` reliably targets touch-only devices. */
+@media (max-width: 900px) and (hover: none) and (pointer: coarse) {
   .mobile-fallback {
     display: flex;
     position: fixed;
