@@ -254,7 +254,7 @@ export default function LeftRail({
         type="button"
         className={`rail-collapsed ${open ? "hidden" : ""}`}
         onClick={() => setOpen(true)}
-        title="Filters & layers"
+        data-tooltip="Filters & layers"
         aria-label="Filters & layers"
       >
         <span className="rail-whale-icon" role="img" aria-label="whale">
