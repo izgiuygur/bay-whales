@@ -890,6 +890,12 @@ body {
   display: block;
 }
 
+/* Flip horizontally for species whose source illustration faces the
+   opposite direction (e.g. the gray whale). */
+.info-card-silhouette-img.flip-h {
+  transform: scaleX(-1);
+}
+
 .info-card-body {
   flex: 1 1 auto;
   background: #FFFFFF;

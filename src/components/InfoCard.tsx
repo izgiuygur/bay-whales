@@ -134,7 +134,9 @@ export default function InfoCard({ record, position, onClose }: Props) {
             <img
               src={silhouette}
               alt={record.species}
-              className="info-card-silhouette-img"
+              className={`info-card-silhouette-img${
+                record.species === "Gray whale" ? " flip-h" : ""
+              }`}
             />
           </div>
         )}
