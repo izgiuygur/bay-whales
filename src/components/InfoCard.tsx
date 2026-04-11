@@ -8,8 +8,7 @@ interface Props {
   onClose: () => void;
 }
 
-const CARD_W = 368;
-const CARD_H = 460;
+const CARD_W = 332;
 const GAP = 12;
 
 // Convert hex to rgba with given alpha
@@ -29,8 +28,8 @@ function getCardTint(species: string): string {
   return "rgba(0, 81, 186, 0.06)";
 }
 
-// Silhouette PNGs for the eight main species. Rare species fall through
-// to `null` until illustrations are added later.
+// Silhouette PNGs mapped by normalized species name.
+// Unidentified categories reuse a visually similar species illustration.
 const SPECIES_SILHOUETTES: Record<string, string> = {
   "Gray whale": "/whale_silhouettes/gray-whale.png",
   "Humpback whale": "/whale_silhouettes/Whale-Humpback.png",
@@ -40,6 +39,14 @@ const SPECIES_SILHOUETTES: Record<string, string> = {
   "Killer whale": "/whale_silhouettes/killer-whale.png",
   "Blue whale": "/whale_silhouettes/blue-whale.png",
   "Pygmy sperm whale": "/whale_silhouettes/whale_pygmy_sperm.png",
+  "Bryde's whale": "/whale_silhouettes/Whale-Brydes.png",
+  "Baird's beaked whale": "/whale_silhouettes/bairds-beaked-whale.png",
+  "Cuvier's beaked whale": "/whale_silhouettes/cuviers-beaked-whale.png",
+  "Hubbs' beaked whale": "/whale_silhouettes/hubbs-beaked-whale.png",
+  // Unidentified categories reuse existing illustrations
+  "Unidentified fin/sei whale": "/whale_silhouettes/fin-whale.png",
+  "Unidentified baleen whale": "/whale_silhouettes/minke-whale.png",
+  "Unidentified whale": "/whale_silhouettes/fin-whale.png",
 };
 
 export default function InfoCard({ record, position, onClose }: Props) {
@@ -49,26 +56,31 @@ export default function InfoCard({ record, position, onClose }: Props) {
   });
 
   useLayoutEffect(() => {
-    const container = cardRef.current?.parentElement;
-    if (!container) return;
+    const card = cardRef.current;
+    const container = card?.parentElement;
+    if (!card || !container) return;
     const cw = container.clientWidth;
     const ch = container.clientHeight;
+    // Measure the actual rendered card size so variable-length content
+    // is placed correctly (the card height changes based on content).
+    const cardH = card.offsetHeight;
+    const cardW = card.offsetWidth || CARD_W;
 
     // Try to place to the right of the point
     let left = position.x + GAP;
-    let top = position.y - CARD_H / 2;
+    let top = position.y - cardH / 2;
 
     // If it overflows right, place to the left
-    if (left + CARD_W > cw) {
-      left = position.x - CARD_W - GAP;
+    if (left + cardW > cw) {
+      left = position.x - cardW - GAP;
     }
 
     // Clamp vertically
     if (top < GAP) top = GAP;
-    if (top + CARD_H > ch - GAP) top = ch - GAP - CARD_H;
+    if (top + cardH > ch - GAP) top = ch - GAP - cardH;
 
     setStyle({ left, top, visibility: "visible" });
-  }, [position]);
+  }, [position, record.id]);
 
   const formatted = record.dateObserved
     ? new Date(record.dateObserved).toLocaleDateString("en-US", {
@@ -148,37 +160,49 @@ export default function InfoCard({ record, position, onClose }: Props) {
           <div className="info-card-subtitle">{formatted}</div>
         </div>
 
-        {(record.locationLabel || record.county) && (
-          <div className="info-card-location">
-            {record.locationLabel && (
-              <div className="info-card-location-label">
-                {record.locationLabel}
-              </div>
-            )}
-            {record.county && (
-              <div className="info-card-location-detail">
-                {record.county} County
-              </div>
-            )}
-          </div>
-        )}
+        <div className="info-card-bottom">
+          {(record.locationLabel || record.county) && (
+            <div className="info-card-location">
+              {record.locationLabel && (
+                <div className="info-card-location-label">
+                  {record.locationLabel}
+                </div>
+              )}
+              {record.county && (
+                <div className="info-card-location-detail">
+                  {record.county} County
+                </div>
+              )}
+            </div>
+          )}
 
-        <div className="info-card-meta">
-          {reportedFindings && (
+          <div className="info-card-meta">
+            {reportedFindings && (
+              <div className="info-card-meta-row info-card-meta-row-findings">
+                <span className="info-card-meta-label">Reported findings:</span>{" "}
+                <span className="info-card-meta-value">
+                  {record.boatCollision === "Y" && (
+                    <img
+                      src="/boat-collision.png"
+                      alt=""
+                      className="info-card-meta-icon"
+                      aria-label="Boat collision recorded"
+                    />
+                  )}
+                  {reportedFindings}
+                </span>
+              </div>
+            )}
+            {sexAge && (
+              <div className="info-card-meta-row">
+                <span className="info-card-meta-label">Sex / age:</span>{" "}
+                <span className="info-card-meta-value">{sexAge}</span>
+              </div>
+            )}
             <div className="info-card-meta-row">
-              <span className="info-card-meta-label">Reported findings:</span>{" "}
-              <span className="info-card-meta-value">{reportedFindings}</span>
+              <span className="info-card-meta-label">Location confidence:</span>{" "}
+              <span className="info-card-meta-value">{locationConfidence}</span>
             </div>
-          )}
-          {sexAge && (
-            <div className="info-card-meta-row">
-              <span className="info-card-meta-label">Sex / age:</span>{" "}
-              <span className="info-card-meta-value">{sexAge}</span>
-            </div>
-          )}
-          <div className="info-card-meta-row">
-            <span className="info-card-meta-label">Location confidence:</span>{" "}
-            <span className="info-card-meta-value">{locationConfidence}</span>
           </div>
         </div>
       </div>
