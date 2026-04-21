@@ -6,7 +6,6 @@ interface Props {
   yearMin: number;
   yearMax: number;
   selectedRange: YearRange;
-  activeSpecies: Set<string>;
   filters: Filters;
 }
 
@@ -15,7 +14,6 @@ export default function RecordCount({
   yearMin,
   yearMax,
   selectedRange,
-  activeSpecies,
   filters,
 }: Props) {
   const yearLabel =
@@ -25,12 +23,11 @@ export default function RecordCount({
         ? String(selectedRange.start)
         : `${selectedRange.start}\u2013${selectedRange.end}`;
 
-  // Combine species from pills and drawer
-  const allSpecies = new Set([...activeSpecies, ...filters.species]);
+  // Species filter state (pills and drawer share the same underlying set).
   const speciesLabel =
-    allSpecies.size === 0
+    filters.species.size === 0
       ? "All species"
-      : Array.from(allSpecies).join(", ");
+      : Array.from(filters.species).join(", ");
 
   // Count active drawer filters (excluding species since it's shown in speciesLabel)
   const drawerFilterCount =

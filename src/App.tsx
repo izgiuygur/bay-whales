@@ -8,7 +8,7 @@ import TimelineSlider from "./components/TimelineSlider";
 import RecordCount from "./components/RecordCount";
 import MobileFallback from "./components/MobileFallback";
 import { loadWhaleData } from "./data/whaleData";
-import type { WhaleRecord, SpeciesKey } from "./types/whale";
+import type { WhaleRecord } from "./types/whale";
 import type { Filters, FilterKey } from "./types/filters";
 import { emptyFilters } from "./types/filters";
 
@@ -53,7 +53,6 @@ export type YearRange = { start: number; end: number } | null;
 
 export default function App() {
   const [records, setRecords] = useState<WhaleRecord[]>([]);
-  const [activeSpecies, setActiveSpecies] = useState<Set<string>>(new Set());
   const [selectedRange, setSelectedRange] = useState<YearRange>(null);
   const [filters, setFilters] = useState<Filters>(emptyFilters);
   const [showBathymetry, setShowBathymetry] = useState(false);
@@ -88,8 +87,6 @@ export default function App() {
         (r.year < selectedRange.start || r.year > selectedRange.end)
       )
         return false;
-      if (activeSpecies.size > 0 && !activeSpecies.has(r.species)) return false;
-      // Drawer filters
       if (filters.species.size > 0 && !filters.species.has(r.species))
         return false;
       if (filters.month.size > 0 && !filters.month.has(r.month)) return false;
@@ -108,19 +105,7 @@ export default function App() {
         return false;
       return true;
     });
-  }, [records, activeSpecies, selectedRange, filters]);
-
-  const handleSpeciesToggle = (species: SpeciesKey) => {
-    setActiveSpecies((prev) => {
-      const next = new Set(prev);
-      if (next.has(species)) {
-        next.delete(species);
-      } else {
-        next.add(species);
-      }
-      return next;
-    });
-  };
+  }, [records, selectedRange, filters]);
 
   const handleFilterToggle = useCallback(
     (key: FilterKey, value: string | number) => {
@@ -190,16 +175,15 @@ export default function App() {
           showPre2013Lanes={showPre2013Lanes}
         />
         <SpeciesFilter
-          active={activeSpecies}
-          onToggle={handleSpeciesToggle}
-          onClearAll={() => setActiveSpecies(new Set())}
+          active={filters.species}
+          onToggle={(species) => handleFilterToggle("species", species)}
+          onClearAll={() => handleFilterClear("species")}
         />
         <RecordCount
           count={filtered.length}
           yearMin={years.min}
           yearMax={years.max}
           selectedRange={selectedRange}
-          activeSpecies={activeSpecies}
           filters={filters}
         />
         <TimelineSlider
