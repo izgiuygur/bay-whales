@@ -93,17 +93,19 @@ body {
 /* ── Header ── */
 .header {
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  padding: 16px 24px 14px;
+  justify-content: flex-start;
+  align-items: flex-start;
+  padding: 8px 24px 8px;
   border-bottom: 1px solid rgba(89, 89, 89, 0.8);
   opacity: 0.95;
 }
 
-.header-subtitle {
-  font-size: 14px;
-  color: var(--text-muted);
-  letter-spacing: 0.2px;
+/* Title + subtitle anchored together as one block in the top-left. */
+.header-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
 }
 
 .header-title {
@@ -111,6 +113,16 @@ body {
   font-weight: 600;
   letter-spacing: 1.5px;
   text-transform: uppercase;
+  margin: 0;
+  line-height: 1.15;
+}
+
+.header-subtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+  letter-spacing: 0.2px;
+  margin: 0;
+  line-height: 1.3;
 }
 
 /* ── Species Pills ── */
@@ -131,25 +143,53 @@ body {
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.3px;
-  padding: 6px 20px;
+  padding: 6px 16px;
   border-radius: 20px;
   border: 1.5px solid;
   cursor: pointer;
   transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 1;
+}
+
+/* Small color dot shown inside INACTIVE pills so the pill still
+   functions as a legend swatch even when the filter is off. */
+.species-pill-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
 }
 
 .species-pill:hover {
   opacity: 0.85;
 }
 
-.species-pill.active {
-  color: #333;
+/* Subtle text link shown next to the pills when any species is hidden.
+   Lets the user restore all species without hunting for a specific pill. */
+.species-pill-reset {
+  font-family: var(--font);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  color: #666;
+  background: none;
+  border: none;
+  padding: 4px 2px;
+  margin-left: 4px;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: rgba(0, 0, 0, 0.25);
+  transition: color 0.15s ease, text-decoration-color 0.15s ease;
 }
 
-.species-pill-all {
-  border-color: #333 !important;
-  background-color: #fff !important;
-  color: #333;
+.species-pill-reset:hover {
+  color: #111;
+  text-decoration-color: rgba(0, 0, 0, 0.6);
 }
 
 /* Record Count */
@@ -178,11 +218,6 @@ body {
   color: #888;
   letter-spacing: 0.2px;
   margin-top: 2px;
-}
-
-.species-pill-all.active {
-  background-color: #111 !important;
-  color: #fff !important;
 }
 
 /* ── Main Area ── */
@@ -499,6 +534,17 @@ body {
   margin: 0;
   accent-color: #0051BA;
   cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* Species-color dot placed between the checkbox and the species name.
+   Matches the dot color used in the top-of-map pills so the drawer
+   doubles as a legend. */
+.filter-option-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
   flex-shrink: 0;
 }
 

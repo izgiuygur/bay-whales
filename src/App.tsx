@@ -87,8 +87,9 @@ export default function App() {
         (r.year < selectedRange.start || r.year > selectedRange.end)
       )
         return false;
-      if (filters.species.size > 0 && !filters.species.has(r.species))
-        return false;
+      // filters.species holds species the user has explicitly HIDDEN
+      // (empty = all species visible by default).
+      if (filters.species.has(r.species)) return false;
       if (filters.month.size > 0 && !filters.month.has(r.month)) return false;
       if (filters.county.size > 0 && !filters.county.has(r.county))
         return false;
@@ -136,6 +137,23 @@ export default function App() {
     setFilters(emptyFilters());
   }, []);
 
+  // Bulk-toggle a group of species in filters.species.
+  // When `makeHidden` is true, adds every species in `group` to the hidden
+  // set. When false, removes every species in `group` from the set.
+  const handleSpeciesGroupToggle = useCallback(
+    (group: string[], makeHidden: boolean) => {
+      setFilters((prev) => {
+        const set = new Set(prev.species);
+        for (const s of group) {
+          if (makeHidden) set.add(s);
+          else set.delete(s);
+        }
+        return { ...prev, species: set };
+      });
+    },
+    []
+  );
+
   if (records.length === 0) {
     return (
       <div className="loading-screen">
@@ -175,9 +193,10 @@ export default function App() {
           showPre2013Lanes={showPre2013Lanes}
         />
         <SpeciesFilter
-          active={filters.species}
-          onToggle={(species) => handleFilterToggle("species", species)}
-          onClearAll={() => handleFilterClear("species")}
+          hidden={filters.species}
+          onToggleSpecies={(species) => handleFilterToggle("species", species)}
+          onToggleGroup={handleSpeciesGroupToggle}
+          onReset={() => handleFilterClear("species")}
         />
         <RecordCount
           count={filtered.length}

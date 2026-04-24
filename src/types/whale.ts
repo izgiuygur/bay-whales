@@ -38,3 +38,16 @@ export const FEATURED_SPECIES: SpeciesKey[] = [
   "Humpback whale",
   "Fin whale",
 ];
+
+// Color used for the "Other" pill and for every non-featured species
+// dot in the drawer. Matches the fallback pin color on the map.
+export const OTHER_SPECIES_COLOR = "#4a4a4a";
+
+// Pill legend color for a given species (featured species use their
+// `pin` color, everything else falls back to OTHER_SPECIES_COLOR).
+export function getSpeciesDotColor(species: string): string {
+  if (species in SPECIES_COLORS) {
+    return SPECIES_COLORS[species as SpeciesKey].pin;
+  }
+  return OTHER_SPECIES_COLOR;
+}

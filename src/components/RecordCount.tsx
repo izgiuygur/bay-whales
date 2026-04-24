@@ -1,5 +1,12 @@
 import type { Filters } from "../types/filters";
+import { SPECIES_COMMON, SPECIES_RARE } from "../types/filters";
+import { FEATURED_SPECIES } from "../types/whale";
 import type { YearRange } from "../App";
+
+const OTHER_SPECIES_SET: Set<string> = new Set([
+  ...SPECIES_COMMON.filter((s) => !FEATURED_SPECIES.includes(s as never)),
+  ...SPECIES_RARE,
+]);
 
 interface Props {
   count: number;
@@ -23,11 +30,24 @@ export default function RecordCount({
         ? String(selectedRange.start)
         : `${selectedRange.start}\u2013${selectedRange.end}`;
 
-  // Species filter state (pills and drawer share the same underlying set).
+  // filters.species = HIDDEN species. Derive the label from which pill
+  // groups are still visible (active pills), not from the hidden set.
+  const hidden = filters.species;
+  const activePillLabels: string[] = [];
+  for (const sp of FEATURED_SPECIES) {
+    if (!hidden.has(sp)) activePillLabels.push(sp);
+  }
+  const anyOtherVisible = Array.from(OTHER_SPECIES_SET).some(
+    (s) => !hidden.has(s)
+  );
+  if (anyOtherVisible) activePillLabels.push("Other species");
+
   const speciesLabel =
-    filters.species.size === 0
+    hidden.size === 0
       ? "All species"
-      : Array.from(filters.species).join(", ");
+      : activePillLabels.length === 0
+        ? "No species"
+        : activePillLabels.join(", ");
 
   // Count active drawer filters (excluding species since it's shown in speciesLabel)
   const drawerFilterCount =
@@ -47,7 +67,7 @@ export default function RecordCount({
   return (
     <div className="record-count">
       <div className="record-count-number">
-        Showing <span className="record-count-value">{count}</span> record
+        Showing <span className="record-count-value">{count}</span> stranding
         {count !== 1 ? "s" : ""}
       </div>
       <div className="record-count-filters">

@@ -12,6 +12,7 @@ import {
   AFFILIATIONS,
   LOCATION_CONFIDENCES,
 } from "../types/filters";
+import { getSpeciesDotColor } from "../types/whale";
 
 interface Props {
   filters: Filters;
@@ -104,7 +105,34 @@ function SpeciesFilterSection({
 }) {
   const [expanded, setExpanded] = useState(false);
   const [showRare, setShowRare] = useState(false);
-  const activeSet = filters.species;
+  // filters.species holds the set of HIDDEN species.
+  // A checkbox is checked when the species is NOT hidden.
+  const hiddenSet = filters.species;
+  const hiddenCount = hiddenSet.size;
+
+  const renderRow = (sp: string) => (
+    <label key={sp} className="filter-option">
+      <input
+        type="checkbox"
+        checked={!hiddenSet.has(sp)}
+        onChange={() => onToggle("species", sp)}
+      />
+      <span
+        className="filter-option-dot"
+        style={{ backgroundColor: getSpeciesDotColor(sp) }}
+        aria-hidden="true"
+      />
+      <span className="filter-option-label">
+        {sp}
+        {SPECIES_SCIENTIFIC[sp] && (
+          <span className="filter-option-scientific">
+            {" "}
+            (<i>{SPECIES_SCIENTIFIC[sp]}</i>)
+          </span>
+        )}
+      </span>
+    </label>
+  );
 
   return (
     <div className="filter-section">
@@ -113,12 +141,12 @@ function SpeciesFilterSection({
         className="filter-section-header"
         onClick={() => setExpanded(!expanded)}
         aria-expanded={expanded}
-        aria-label={`Species filter${activeSet.size > 0 ? `, ${activeSet.size} active` : ""}`}
+        aria-label={`Species filter${hiddenCount > 0 ? `, ${hiddenCount} hidden` : ""}`}
       >
         <span className="filter-section-title">
           Species
-          {activeSet.size > 0 && (
-            <span className="filter-count">{activeSet.size}</span>
+          {hiddenCount > 0 && (
+            <span className="filter-count">{hiddenCount}</span>
           )}
         </span>
         <span
@@ -130,24 +158,7 @@ function SpeciesFilterSection({
       </button>
       {expanded && (
         <div className="filter-options" role="group" aria-label="Species">
-          {SPECIES_COMMON.map((sp) => (
-            <label key={sp} className="filter-option">
-              <input
-                type="checkbox"
-                checked={activeSet.has(sp)}
-                onChange={() => onToggle("species", sp)}
-              />
-              <span className="filter-option-label">
-                {sp}
-                {SPECIES_SCIENTIFIC[sp] && (
-                  <span className="filter-option-scientific">
-                    {" "}
-                    (<i>{SPECIES_SCIENTIFIC[sp]}</i>)
-                  </span>
-                )}
-              </span>
-            </label>
-          ))}
+          {SPECIES_COMMON.map(renderRow)}
           <button
             type="button"
             className="filter-more-toggle"
@@ -162,33 +173,15 @@ function SpeciesFilterSection({
               &#8250;
             </span>
           </button>
-          {showRare &&
-            SPECIES_RARE.map((sp) => (
-              <label key={sp} className="filter-option">
-                <input
-                  type="checkbox"
-                  checked={activeSet.has(sp)}
-                  onChange={() => onToggle("species", sp)}
-                />
-                <span className="filter-option-label">
-                  {sp}
-                  {SPECIES_SCIENTIFIC[sp] && (
-                    <span className="filter-option-scientific">
-                      {" "}
-                      (<i>{SPECIES_SCIENTIFIC[sp]}</i>)
-                    </span>
-                  )}
-                </span>
-              </label>
-            ))}
-          {activeSet.size > 0 && (
+          {showRare && SPECIES_RARE.map(renderRow)}
+          {hiddenCount > 0 && (
             <button
               type="button"
               className="filter-clear-btn"
               onClick={() => onClear("species")}
-              aria-label="Clear Species filter"
+              aria-label="Clear Species filter (show all species)"
             >
-              Clear
+              Show all
             </button>
           )}
         </div>
@@ -209,8 +202,28 @@ export default function LeftRail({
   showPre2013Lanes,
   onTogglePre2013Lanes,
 }: Props) {
-  const [open, setOpen] = useState(false);
+  // Persist drawer open/collapsed state across visits.
+  // First visit (no stored value) defaults to OPEN so new users see the
+  // filters and layers rather than a single whale button.
+  const [open, setOpen] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    try {
+      const stored = window.localStorage.getItem("bay-whales.drawer-open");
+      return stored === null ? true : stored === "true";
+    } catch {
+      return true;
+    }
+  });
   const drawerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem("bay-whales.drawer-open", String(open));
+    } catch {
+      // Storage can fail (private mode, quota) — persistence is best-effort.
+    }
+  }, [open]);
 
   const totalActive = Object.values(filters).reduce(
     (sum, s) => sum + s.size,

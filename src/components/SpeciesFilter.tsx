@@ -1,14 +1,72 @@
-import { FEATURED_SPECIES, SPECIES_COLORS } from "../types/whale";
-import type { SpeciesKey } from "../types/whale";
+import {
+  FEATURED_SPECIES,
+  SPECIES_COLORS,
+  OTHER_SPECIES_COLOR,
+} from "../types/whale";
+import { SPECIES_COMMON, SPECIES_RARE } from "../types/filters";
 
 interface Props {
-  active: Set<string>;
-  onToggle: (species: SpeciesKey) => void;
-  onClearAll: () => void;
+  // Set of species the user has hidden. Empty = all species visible.
+  hidden: Set<string>;
+  onToggleSpecies: (species: string) => void;
+  onToggleGroup: (species: string[], makeHidden: boolean) => void;
+  onReset: () => void;
 }
 
-export default function SpeciesFilter({ active, onToggle, onClearAll }: Props) {
-  const allActive = active.size === 0;
+// Species grouped under the "Other" pill: every species that isn't one
+// of the three featured ones (all of SPECIES_COMMON + SPECIES_RARE minus
+// Gray/Humpback/Fin).
+const OTHER_SPECIES: string[] = [
+  ...SPECIES_COMMON.filter((s) => !FEATURED_SPECIES.includes(s as never)),
+  ...SPECIES_RARE,
+];
+
+interface PillSpec {
+  key: string;
+  label: string;
+  color: string;
+  dotColor: string;
+  isActive: boolean;
+  ariaLabel: string;
+  onToggle: () => void;
+}
+
+export default function SpeciesFilter({
+  hidden,
+  onToggleSpecies,
+  onToggleGroup,
+  onReset,
+}: Props) {
+  const pills: PillSpec[] = FEATURED_SPECIES.map((species) => {
+    const colors = SPECIES_COLORS[species];
+    const isActive = !hidden.has(species);
+    return {
+      key: species,
+      label: species,
+      color: colors.active,
+      dotColor: colors.pin,
+      isActive,
+      ariaLabel: isActive ? `Hide ${species}` : `Show ${species}`,
+      onToggle: () => onToggleSpecies(species),
+    };
+  });
+
+  // "Other" is active iff at least one non-featured species is visible.
+  const anyOtherVisible = OTHER_SPECIES.some((s) => !hidden.has(s));
+  pills.push({
+    key: "__other__",
+    label: "Other",
+    color: OTHER_SPECIES_COLOR,
+    dotColor: OTHER_SPECIES_COLOR,
+    isActive: anyOtherVisible,
+    ariaLabel: anyOtherVisible
+      ? "Hide all other species"
+      : "Show all other species",
+    // Clicking when currently visible → hide all; when currently hidden → show all.
+    onToggle: () => onToggleGroup(OTHER_SPECIES, anyOtherVisible),
+  });
+
+  const anyHidden = hidden.size > 0;
 
   return (
     <div
@@ -16,36 +74,40 @@ export default function SpeciesFilter({ active, onToggle, onClearAll }: Props) {
       role="group"
       aria-label="Filter strandings by species"
     >
-      {FEATURED_SPECIES.map((species) => {
-        const isActive = active.has(species);
-        const colors = SPECIES_COLORS[species];
-        return (
-          <button
-            key={species}
-            type="button"
-            className={`species-pill ${isActive ? "active" : ""}`}
-            style={{
-              backgroundColor: isActive ? colors.active : "#fff",
-              borderColor: isActive ? colors.active : colors.passive,
-              color: isActive ? "#fff" : "#333",
-            }}
-            onClick={() => onToggle(species)}
-            aria-pressed={isActive}
-            aria-label={`Filter to ${species}`}
-          >
-            {species}
-          </button>
-        );
-      })}
-      <button
-        type="button"
-        className={`species-pill species-pill-all ${allActive ? "active" : ""}`}
-        onClick={onClearAll}
-        aria-pressed={allActive}
-        aria-label="Show all species"
-      >
-        All species
-      </button>
+      {pills.map((p) => (
+        <button
+          key={p.key}
+          type="button"
+          className={`species-pill ${p.isActive ? "active" : ""}`}
+          style={{
+            backgroundColor: p.isActive ? p.color : "#fff",
+            borderColor: p.color,
+            color: p.isActive ? "#fff" : "#333",
+          }}
+          onClick={p.onToggle}
+          aria-pressed={p.isActive}
+          aria-label={p.ariaLabel}
+        >
+          {!p.isActive && (
+            <span
+              className="species-pill-dot"
+              style={{ backgroundColor: p.dotColor }}
+              aria-hidden="true"
+            />
+          )}
+          {p.label}
+        </button>
+      ))}
+      {anyHidden && (
+        <button
+          type="button"
+          className="species-pill-reset"
+          onClick={onReset}
+          aria-label="Show all species (reset species filter)"
+        >
+          Reset species
+        </button>
+      )}
     </div>
   );
 }
