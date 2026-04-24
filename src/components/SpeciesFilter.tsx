@@ -88,26 +88,33 @@ export default function SpeciesFilter({
           aria-pressed={p.isActive}
           aria-label={p.ariaLabel}
         >
-          {!p.isActive && (
-            <span
-              className="species-pill-dot"
-              style={{ backgroundColor: p.dotColor }}
-              aria-hidden="true"
-            />
-          )}
+          {/* Always render the dot so the pill width stays constant;
+              hide it visually when the pill is active. */}
+          <span
+            className="species-pill-dot"
+            style={{
+              backgroundColor: p.dotColor,
+              visibility: p.isActive ? "hidden" : "visible",
+            }}
+            aria-hidden="true"
+          />
           {p.label}
         </button>
       ))}
-      {anyHidden && (
-        <button
-          type="button"
-          className="species-pill-reset"
-          onClick={onReset}
-          aria-label="Show all species (reset species filter)"
-        >
-          Reset species
-        </button>
-      )}
+      {/* Always rendered so the pill row's width never reflows when
+          the reset link toggles on/off. `visibility: hidden` keeps
+          the slot reserved without showing the label. */}
+      <button
+        type="button"
+        className="species-pill-reset"
+        onClick={onReset}
+        aria-label="Show all species (reset species filter)"
+        style={{ visibility: anyHidden ? "visible" : "hidden" }}
+        tabIndex={anyHidden ? 0 : -1}
+        aria-hidden={!anyHidden}
+      >
+        Reset species
+      </button>
     </div>
   );
 }
