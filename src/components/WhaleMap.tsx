@@ -1,6 +1,14 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
-import { MapContainer, TileLayer, GeoJSON, Marker, useMapEvents, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, GeoJSON, useMapEvents, useMap } from "react-leaflet";
 import L from "leaflet";
+// OMS is a legacy window-global plugin: it reads `window.L` at load
+// time and attaches itself as `window.OverlappingMarkerSpiderfier`.
+// The setup module below exposes Leaflet on window BEFORE the plugin
+// module evaluates — import order is load order.
+import "../lib/oms-setup";
+import "overlapping-marker-spiderfier-leaflet";
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const OverlappingMarkerSpiderfier = (window as any).OverlappingMarkerSpiderfier;
 import type { LeafletMouseEvent } from "leaflet";
 import type { WhaleRecord } from "../types/whale";
 import { SPECIES_COLORS } from "../types/whale";
@@ -54,12 +62,15 @@ export function getTooltipBg(species: string): string {
   return FALLBACK_DARK;
 }
 
+// Teardrop pin width (px) at a given zoom level. Each value was
+// shrunk by ~15% vs the original ladder (24/18/14/11/8) so the
+// default view feels less crowded.
 function pinSizeForZoom(zoom: number): number {
-  if (zoom >= 13) return 24;
-  if (zoom >= 11) return 18;
-  if (zoom >= 10) return 14;
-  if (zoom >= 9) return 11;
-  return 8;
+  if (zoom >= 13) return 20;
+  if (zoom >= 11) return 15;
+  if (zoom >= 10) return 12;
+  if (zoom >= 9) return 9;
+  return 7;
 }
 
 function createPinIcon(
@@ -312,6 +323,125 @@ function pre2013LaneStyle(feature: any): L.PathOptions {
   };
 }
 
+interface MarkerLayerProps {
+  records: WhaleRecord[];
+  selectedId: string | null;
+  zoom: number;
+  onMouseOver: (record: WhaleRecord, e: LeafletMouseEvent) => void;
+  onMouseOut: () => void;
+  onClick: (record: WhaleRecord, e: LeafletMouseEvent) => void;
+}
+
+// Renders one native Leaflet marker per record and wires them into an
+// OverlappingMarkerSpiderfier so stacked pins (Angel Island, SF waterfront,
+// Point Reyes beaches) fan out on click instead of being unclickable.
+//
+// We drop react-leaflet's <Marker> component here because OMS needs
+// direct access to the marker instances, and re-rendering React children
+// interferes with its internal tracking. Instead we rebuild the layer
+// imperatively whenever records / selectedId / zoom change.
+function WhaleMarkerLayer({
+  records,
+  selectedId,
+  zoom,
+  onMouseOver,
+  onMouseOut,
+  onClick,
+}: MarkerLayerProps) {
+  const map = useMap();
+  // Stable OMS instance across re-renders — created once per map.
+  // OMS has no bundled types; we use the imperative methods directly.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const omsRef = useRef<any | null>(null);
+  // Keep latest click handler without re-creating OMS when it changes.
+  const onClickRef = useRef(onClick);
+  onClickRef.current = onClick;
+
+  // Create OMS once when the map mounts.
+  useEffect(() => {
+    const oms = new OverlappingMarkerSpiderfier(map, {
+      keepSpiderfied: true, // stay fanned out until user clicks elsewhere
+      nearbyDistance: 20, // px — pins within 20px count as overlapping
+      circleSpiralSwitchover: 9, // circle for ≤9, spiral for more
+      legWeight: 1.5,
+      legColors: {
+        usual: "rgba(156, 163, 175, 0.6)",
+        highlighted: "rgba(17, 17, 17, 0.8)",
+      },
+    });
+    // Spiderfier intercepts click events — look up the record via the
+    // marker's attached WhaleRecord reference (set when we create it).
+    // OMS doesn't give us the original MouseEvent, so we derive screen
+    // coords from the (possibly just-spiderfied) marker's DOM position
+    // to keep the detail card anchored correctly.
+    oms.addListener("click", (m: unknown) => {
+      const marker = m as L.Marker;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const record = (marker as any).__whaleRecord as WhaleRecord | undefined;
+      if (!record) return;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const iconEl = (marker as any)._icon as HTMLElement | undefined;
+      let clientX = 0;
+      let clientY = 0;
+      if (iconEl) {
+        const r = iconEl.getBoundingClientRect();
+        clientX = r.left + r.width / 2;
+        clientY = r.top + r.height / 2;
+      }
+      const evt = {
+        target: marker,
+        latlng: marker.getLatLng(),
+        originalEvent: { clientX, clientY },
+      } as unknown as LeafletMouseEvent;
+      onClickRef.current(record, evt);
+    });
+    omsRef.current = oms;
+    return () => {
+      oms.clearMarkers();
+      oms.clearListeners("click");
+      omsRef.current = null;
+    };
+  }, [map]);
+
+  // Re-render markers whenever records, selection, or zoom changes.
+  useEffect(() => {
+    const oms = omsRef.current;
+    if (!oms) return;
+
+    // Remove any previously-added markers from both OMS and the map.
+    const existing = oms.getMarkers();
+    for (const m of existing) map.removeLayer(m);
+    oms.clearMarkers();
+
+    for (const record of records) {
+      const isSelected = selectedId === record.id;
+      const marker = L.marker([record.latitude, record.longitude], {
+        icon: getPinIcon(record.species, isSelected, zoom),
+      });
+      // Attach the record so the OMS click handler can look it up.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (marker as any).__whaleRecord = record;
+      // Hover events stay on the marker directly (OMS only intercepts
+      // clicks). This keeps the tooltip behavior intact.
+      marker.on("mouseover", (e) =>
+        onMouseOver(record, e as LeafletMouseEvent)
+      );
+      marker.on("mouseout", onMouseOut);
+      marker.addTo(map);
+      oms.addMarker(marker);
+    }
+
+    return () => {
+      // Remove just the markers we added on this pass.
+      const current = oms.getMarkers();
+      for (const m of current) map.removeLayer(m);
+      oms.clearMarkers();
+    };
+  }, [records, selectedId, zoom, map, onMouseOver, onMouseOut]);
+
+  return null;
+}
+
 export default function WhaleMap({ records, showBathymetry, showShippingLanes, showPre2013Lanes }: Props) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -430,6 +560,7 @@ export default function WhaleMap({ records, showBathymetry, showShippingLanes, s
         center={BAY_CENTER}
         zoom={BAY_ZOOM}
         minZoom={8}
+        maxZoom={18}
         maxBounds={MAX_BOUNDS}
         maxBoundsViscosity={0.8}
         className="leaflet-map"
@@ -467,22 +598,14 @@ export default function WhaleMap({ records, showBathymetry, showShippingLanes, s
         <ZoomHandler onZoom={setZoom} />
         <BayAreaLabels zoom={zoom} />
         <MapClickHandler onMapClick={handleMapClick} />
-        {records.map((record) => {
-          const isSelected = selectedId === record.id;
-
-          return (
-            <Marker
-              key={record.id}
-              position={[record.latitude, record.longitude]}
-              icon={getPinIcon(record.species, isSelected, zoom)}
-              eventHandlers={{
-                mouseover: (e) => handleMouseOver(record, e as LeafletMouseEvent),
-                mouseout: handleMouseOut,
-                click: (e) => handleClick(record, e as LeafletMouseEvent),
-              }}
-            />
-          );
-        })}
+        <WhaleMarkerLayer
+          records={records}
+          selectedId={selectedId}
+          zoom={zoom}
+          onMouseOver={handleMouseOver}
+          onMouseOut={handleMouseOut}
+          onClick={handleClick}
+        />
       </MapContainer>
 
       {hoveredRecord && !selectedRecord && (

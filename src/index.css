@@ -232,8 +232,11 @@ body {
 .left-rail-wrapper {
   position: absolute;
   top: 12px;
+  bottom: 12px;
   left: 0;
   z-index: 500;
+  display: flex;
+  align-items: stretch;
 }
 
 .rail-collapsed {
@@ -340,8 +343,9 @@ body {
 .left-rail.open {
   width: 250px;
   min-width: 250px;
-  height: calc(100vh - 150px);
-  max-height: calc(100vh - 150px);
+  /* Stretch to match the wrapper's top/bottom insets so the drawer
+     has equal blank space above and below it. */
+  height: 100%;
   padding: 0;
   border: 1px solid #d0d1d4;
   border-left: none;

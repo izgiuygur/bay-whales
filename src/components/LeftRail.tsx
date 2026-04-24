@@ -12,24 +12,21 @@ import {
   AFFILIATIONS,
   LOCATION_CONFIDENCES,
 } from "../types/filters";
-import { FEATURED_SPECIES, getSpeciesDotColor } from "../types/whale";
+import { getSpeciesDotColor } from "../types/whale";
 
-// Count the species filter in terms of pill groups (Gray / Humpback /
-// Fin / Other), not individual species. Each featured species that's
-// hidden contributes 1; any number of non-featured species hidden
-// contributes 1 collectively. Max 4. This matches the user's mental
-// model so toggling the "Other" pill off reads as 1, not as however
-// many individual non-featured species that represents.
-function countSpeciesFilterGroups(hidden: Set<string>): number {
-  let n = 0;
-  for (const s of FEATURED_SPECIES) {
-    if (hidden.has(s)) n++;
-  }
-  const anyOtherHidden = Array.from(hidden).some(
-    (s) => !FEATURED_SPECIES.includes(s as never)
-  );
-  if (anyOtherHidden) n++;
-  return n;
+// Total number of distinct species the user can filter on
+// (SPECIES_COMMON ∪ SPECIES_RARE). Used to show the count of
+// currently-selected species as other filters do.
+const TOTAL_SPECIES_COUNT = SPECIES_COMMON.length + SPECIES_RARE.length;
+
+// Contribution of the species filter to the filter count.
+// Mirrors the behavior of month / county / etc. filters: the badge
+// reflects how many options are actively selected. For species we
+// store HIDDEN entries, so "selected" = TOTAL - hidden. At the default
+// (nothing hidden) the contribution is 0, so no badge shows.
+function countSelectedSpecies(hidden: Set<string>): number {
+  if (hidden.size === 0) return 0;
+  return Math.max(0, TOTAL_SPECIES_COUNT - hidden.size);
 }
 
 interface Props {
@@ -126,9 +123,11 @@ function SpeciesFilterSection({
   // filters.species holds the set of HIDDEN species.
   // A checkbox is checked when the species is NOT hidden.
   const hiddenSet = filters.species;
-  // Count in "pill groups" (Gray / Humpback / Fin / Other), not
-  // individual species — see countSpeciesFilterGroups.
-  const hiddenCount = countSpeciesFilterGroups(hiddenSet);
+  // Number of species currently shown on the map (i.e., selected in
+  // this filter section). Shown as the section badge once any species
+  // is hidden — matches the convention used by month/county/etc.
+  const selectedCount = countSelectedSpecies(hiddenSet);
+  const anyHidden = hiddenSet.size > 0;
 
   const renderRow = (sp: string) => (
     <label key={sp} className="filter-option">
@@ -161,12 +160,12 @@ function SpeciesFilterSection({
         className="filter-section-header"
         onClick={() => setExpanded(!expanded)}
         aria-expanded={expanded}
-        aria-label={`Species filter${hiddenCount > 0 ? `, ${hiddenCount} hidden` : ""}`}
+        aria-label={`Species filter${anyHidden ? `, ${selectedCount} of ${TOTAL_SPECIES_COUNT} selected` : ""}`}
       >
         <span className="filter-section-title">
           Species
-          {hiddenCount > 0 && (
-            <span className="filter-count">{hiddenCount}</span>
+          {anyHidden && (
+            <span className="filter-count">{selectedCount}</span>
           )}
         </span>
         <span
@@ -194,7 +193,7 @@ function SpeciesFilterSection({
             </span>
           </button>
           {showRare && SPECIES_RARE.map(renderRow)}
-          {hiddenCount > 0 && (
+          {anyHidden && (
             <button
               type="button"
               className="filter-clear-btn"
@@ -245,14 +244,21 @@ export default function LeftRail({
     }
   }, [open]);
 
-  // Count species in pill groups (max 4) instead of by individual
-  // species so toggling the "Other" pill off doesn't balloon the
-  // whale-icon badge by 12+.
+  // For non-species filters, the Set already holds the selected
+  // options, so Set.size is the "count of active choices". For
+  // species (exclusion set), translate to the count of currently
+  // SELECTED species so the total reflects the same semantics as
+  // the drawer Species section badge.
   const totalActive =
     Object.entries(filters).reduce(
       (sum, [key, s]) => (key === "species" ? sum : sum + s.size),
       0
-    ) + countSpeciesFilterGroups(filters.species);
+    ) + countSelectedSpecies(filters.species);
+  // Whether any filter is applied at all — used to decide whether to
+  // show the badges. Distinct from `totalActive` so we still render
+  // the badge (with "0") in the edge case where every species is
+  // hidden (selected count = 0 but the filter IS active).
+  const anyFilterApplied = Object.values(filters).some((s) => s.size > 0);
 
   useEffect(() => {
     if (!open) return;
@@ -297,7 +303,7 @@ export default function LeftRail({
         <span className="rail-whale-icon" role="img" aria-label="whale">
           🐳
         </span>
-        {totalActive > 0 && (
+        {anyFilterApplied && (
           <span className="rail-collapsed-badge" aria-hidden="true">
             {totalActive}
           </span>
@@ -327,7 +333,7 @@ export default function LeftRail({
             {/* Filters heading */}
             <div className="rail-section-heading rail-section-heading--main">
               <span>Filters</span>
-              {totalActive > 0 && (
+              {anyFilterApplied && (
                 <button
                   type="button"
                   className="rail-clear-all active"
@@ -370,14 +376,6 @@ export default function LeftRail({
                 onToggle={onToggle}
                 onClear={onClear}
               />
-            </div>
-
-            {/* Animal details heading */}
-            <div className="rail-section-heading rail-section-heading--sub">
-              Animal details
-            </div>
-
-            <div className="filter-group">
               <FilterSection
                 title="Age class"
                 filterKey="ageClass"
@@ -394,16 +392,8 @@ export default function LeftRail({
                 onToggle={onToggle}
                 onClear={onClear}
               />
-            </div>
-
-            {/* Data heading */}
-            <div className="rail-section-heading rail-section-heading--sub">
-              Data
-            </div>
-
-            <div className="filter-group">
               <FilterSection
-                title="Affiliation"
+                title="Reporting organization"
                 filterKey="affiliation"
                 options={affiliationOptions}
                 activeSet={filters.affiliation}
