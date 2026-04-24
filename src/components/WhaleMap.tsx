@@ -323,6 +323,35 @@ function pre2013LaneStyle(feature: any): L.PathOptions {
   };
 }
 
+// Build a screen-reader-friendly label for a single pin.
+// Format: "Gray whale, January 8 2015, Abbotts Lagoon, Marin County"
+// Commas give natural pauses for most screen readers. Falls back
+// gracefully when some fields are missing.
+function buildPinAriaLabel(record: WhaleRecord): string {
+  const parts: string[] = [record.species];
+
+  if (record.dateObserved) {
+    const d = new Date(record.dateObserved);
+    if (!isNaN(d.getTime())) {
+      parts.push(
+        d.toLocaleDateString("en-US", {
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        })
+      );
+    }
+  }
+
+  if (record.locationLabel && record.locationLabel !== "Unknown location") {
+    parts.push(record.locationLabel);
+  } else if (record.county) {
+    parts.push(`${record.county} County`);
+  }
+
+  return parts.join(", ");
+}
+
 interface MarkerLayerProps {
   records: WhaleRecord[];
   selectedId: string | null;
@@ -428,6 +457,16 @@ function WhaleMarkerLayer({
       );
       marker.on("mouseout", onMouseOut);
       marker.addTo(map);
+      // Give the marker an accessible name so screen readers announce
+      // which record each focused pin represents (species, date,
+      // location). We set aria-label directly on the DOM element
+      // instead of using marker.options.title, to avoid the native
+      // browser tooltip delay interfering with our custom MapTooltip.
+      const el = marker.getElement();
+      if (el) {
+        el.setAttribute("role", "button");
+        el.setAttribute("aria-label", buildPinAriaLabel(record));
+      }
       oms.addMarker(marker);
     }
 
