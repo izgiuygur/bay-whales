@@ -12,7 +12,25 @@ import {
   AFFILIATIONS,
   LOCATION_CONFIDENCES,
 } from "../types/filters";
-import { getSpeciesDotColor } from "../types/whale";
+import { FEATURED_SPECIES, getSpeciesDotColor } from "../types/whale";
+
+// Count the species filter in terms of pill groups (Gray / Humpback /
+// Fin / Other), not individual species. Each featured species that's
+// hidden contributes 1; any number of non-featured species hidden
+// contributes 1 collectively. Max 4. This matches the user's mental
+// model so toggling the "Other" pill off reads as 1, not as however
+// many individual non-featured species that represents.
+function countSpeciesFilterGroups(hidden: Set<string>): number {
+  let n = 0;
+  for (const s of FEATURED_SPECIES) {
+    if (hidden.has(s)) n++;
+  }
+  const anyOtherHidden = Array.from(hidden).some(
+    (s) => !FEATURED_SPECIES.includes(s as never)
+  );
+  if (anyOtherHidden) n++;
+  return n;
+}
 
 interface Props {
   filters: Filters;
@@ -108,7 +126,9 @@ function SpeciesFilterSection({
   // filters.species holds the set of HIDDEN species.
   // A checkbox is checked when the species is NOT hidden.
   const hiddenSet = filters.species;
-  const hiddenCount = hiddenSet.size;
+  // Count in "pill groups" (Gray / Humpback / Fin / Other), not
+  // individual species — see countSpeciesFilterGroups.
+  const hiddenCount = countSpeciesFilterGroups(hiddenSet);
 
   const renderRow = (sp: string) => (
     <label key={sp} className="filter-option">
@@ -225,10 +245,14 @@ export default function LeftRail({
     }
   }, [open]);
 
-  const totalActive = Object.values(filters).reduce(
-    (sum, s) => sum + s.size,
-    0
-  );
+  // Count species in pill groups (max 4) instead of by individual
+  // species so toggling the "Other" pill off doesn't balloon the
+  // whale-icon badge by 12+.
+  const totalActive =
+    Object.entries(filters).reduce(
+      (sum, [key, s]) => (key === "species" ? sum : sum + s.size),
+      0
+    ) + countSpeciesFilterGroups(filters.species);
 
   useEffect(() => {
     if (!open) return;
