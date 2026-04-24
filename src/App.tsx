@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import type L from "leaflet";
 import { Analytics } from "@vercel/analytics/react";
 import Header from "./components/Header";
 import SpeciesFilter from "./components/SpeciesFilter";
@@ -6,11 +7,24 @@ import LeftRail from "./components/LeftRail";
 import WhaleMap from "./components/WhaleMap";
 import TimelineSlider from "./components/TimelineSlider";
 import RecordCount from "./components/RecordCount";
-import MobileFallback from "./components/MobileFallback";
+import ShareButton from "./components/ShareButton";
+import MobileLayout from "./layouts/MobileLayout";
+import { useIsMobile } from "./lib/useMediaQuery";
 import { loadWhaleData } from "./data/whaleData";
 import type { WhaleRecord } from "./types/whale";
 import type { Filters, FilterKey } from "./types/filters";
 import { emptyFilters } from "./types/filters";
+import {
+  parse as parseShareUrl,
+  type ShareableState,
+} from "./lib/shareState";
+
+// Snapshot the URL ONCE at module load — we never read it again after
+// hydration. This decouples any subsequent render from the location.
+const initialUrlState = (() => {
+  if (typeof window === "undefined") return {};
+  return parseShareUrl(new URLSearchParams(window.location.search));
+})();
 
 function matchesFindings(record: WhaleRecord, findings: Set<string>): boolean {
   if (findings.size === 0) return true;
@@ -53,11 +67,25 @@ export type YearRange = { start: number; end: number } | null;
 
 export default function App() {
   const [records, setRecords] = useState<WhaleRecord[]>([]);
-  const [selectedRange, setSelectedRange] = useState<YearRange>(null);
-  const [filters, setFilters] = useState<Filters>(emptyFilters);
-  const [showBathymetry, setShowBathymetry] = useState(false);
-  const [showShippingLanes, setShowShippingLanes] = useState(false);
-  const [showPre2013Lanes, setShowPre2013Lanes] = useState(false);
+  const [selectedRange, setSelectedRange] = useState<YearRange>(
+    initialUrlState.year ?? null
+  );
+  const [filters, setFilters] = useState<Filters>(() => ({
+    ...emptyFilters(),
+    ...(initialUrlState.filters ?? {}),
+  }));
+  const [showBathymetry, setShowBathymetry] = useState(
+    initialUrlState.layers?.bathymetry ?? false
+  );
+  const [showShippingLanes, setShowShippingLanes] = useState(
+    initialUrlState.layers?.shippingLanes ?? false
+  );
+  const [showPre2013Lanes, setShowPre2013Lanes] = useState(
+    initialUrlState.layers?.pre2013Lanes ?? false
+  );
+  // Live reference to the Leaflet map instance — used by Share button
+  // to snapshot the current view. We never write to it.
+  const mapRef = useRef<L.Map | null>(null);
 
   useEffect(() => {
     loadWhaleData().then(setRecords);
@@ -154,6 +182,32 @@ export default function App() {
     []
   );
 
+  // Snapshot of everything the share URL represents RIGHT NOW.
+  // The Share button calls this at click time; the URL is not
+  // touched anywhere else.
+  const getShareState = useCallback((): ShareableState => {
+    const map = mapRef.current;
+    let view = null;
+    if (map) {
+      const c = map.getCenter();
+      const z = map.getZoom();
+      view = { lat: c.lat, lng: c.lng, zoom: z };
+    }
+    return {
+      filters,
+      year: selectedRange,
+      layers: {
+        bathymetry: showBathymetry,
+        shippingLanes: showShippingLanes,
+        pre2013Lanes: showPre2013Lanes,
+      },
+      view,
+      pinId: null,
+    };
+  }, [filters, selectedRange, showBathymetry, showShippingLanes, showPre2013Lanes]);
+
+  const isMobile = useIsMobile();
+
   if (records.length === 0) {
     return (
       <div className="loading-screen">
@@ -169,9 +223,37 @@ export default function App() {
     );
   }
 
+  if (isMobile) {
+    return (
+      <>
+        <MobileLayout
+          records={filtered}
+          totalRecords={records.length}
+          years={years}
+          yearCounts={yearCounts}
+          selectedRange={selectedRange}
+          onYearChange={setSelectedRange}
+          filters={filters}
+          onFilterToggle={handleFilterToggle}
+          onFilterClear={handleFilterClear}
+          onFilterClearAll={handleFilterClearAll}
+          onToggleSpeciesGroup={handleSpeciesGroupToggle}
+          showBathymetry={showBathymetry}
+          onToggleBathymetry={() => setShowBathymetry((v) => !v)}
+          showShippingLanes={showShippingLanes}
+          onToggleShippingLanes={() => setShowShippingLanes((v) => !v)}
+          showPre2013Lanes={showPre2013Lanes}
+          onTogglePre2013Lanes={() => setShowPre2013Lanes((v) => !v)}
+          getShareState={getShareState}
+          initialPinId={initialUrlState.pinId ?? null}
+        />
+        <Analytics />
+      </>
+    );
+  }
+
   return (
     <div className="app">
-      <MobileFallback />
       <Header />
       <div className="main-area">
         <LeftRail
@@ -191,6 +273,14 @@ export default function App() {
           showBathymetry={showBathymetry}
           showShippingLanes={showShippingLanes}
           showPre2013Lanes={showPre2013Lanes}
+          initialView={
+            initialUrlState.view
+              ? initialUrlState.view
+              : // Fall back to a defined null so the prop always passes.
+                null
+          }
+          initialPinId={initialUrlState.pinId ?? null}
+          mapRef={mapRef}
         />
         <SpeciesFilter
           hidden={filters.species}
@@ -198,13 +288,19 @@ export default function App() {
           onToggleGroup={handleSpeciesGroupToggle}
           onReset={() => handleFilterClear("species")}
         />
-        <RecordCount
-          count={filtered.length}
-          yearMin={years.min}
-          yearMax={years.max}
-          selectedRange={selectedRange}
-          filters={filters}
-        />
+        <div className="top-right-cluster">
+          <ShareButton
+            getState={getShareState}
+            recordCount={filtered.length}
+          />
+          <RecordCount
+            count={filtered.length}
+            yearMin={years.min}
+            yearMax={years.max}
+            selectedRange={selectedRange}
+            filters={filters}
+          />
+        </div>
         <TimelineSlider
           min={years.min}
           max={years.max}

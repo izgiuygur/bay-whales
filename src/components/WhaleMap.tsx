@@ -13,6 +13,12 @@ import type { LeafletMouseEvent } from "leaflet";
 import type { WhaleRecord } from "../types/whale";
 import { SPECIES_COLORS } from "../types/whale";
 import type { SpeciesKey } from "../types/whale";
+// Pin rendering helpers live in `lib/whalePin` so the mobile mini-map
+// can reuse the exact same geometry + palette.
+import {
+  PIN_FALLBACK_COLOR as FALLBACK_DARK,
+  getPinIcon,
+} from "../lib/whalePin";
 import MapTooltip from "./MapTooltip";
 import InfoCard from "./InfoCard";
 
@@ -21,6 +27,12 @@ interface Props {
   showBathymetry: boolean;
   showShippingLanes: boolean;
   showPre2013Lanes: boolean;
+  /** Initial center + zoom (from the shared URL, if any). */
+  initialView?: { lat: number; lng: number; zoom: number } | null;
+  /** Source record id of a stranding whose detail card should open on mount. */
+  initialPinId?: string | null;
+  /** Ref populated with the Leaflet map instance once it's mounted. */
+  mapRef?: React.MutableRefObject<L.Map | null>;
 }
 
 const BAY_CENTER: [number, number] = [37.7, -122.3];
@@ -30,29 +42,11 @@ const MAX_BOUNDS: L.LatLngBoundsExpression = [
   [39.4, -121.3],
 ];
 
-// Fallback styling for rare / non-featured species: dark gray pin + tooltip
-// with white text for contrast.
-const FALLBACK_DARK = "#4a4a4a";
-
-function getMarkerColor(species: string): string {
-  if (species in SPECIES_COLORS) {
-    return SPECIES_COLORS[species as SpeciesKey].pin;
-  }
-  return FALLBACK_DARK;
-}
-
 export function getTooltipFg(species: string): string {
   if (species in SPECIES_COLORS) {
     return "#333";
   }
   return "#ffffff";
-}
-
-function speciesSlug(species: string): string {
-  return species
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "") || "other";
 }
 
 export function getTooltipBg(species: string): string {
@@ -62,67 +56,30 @@ export function getTooltipBg(species: string): string {
   return FALLBACK_DARK;
 }
 
-// Teardrop pin width (px) at a given zoom level. Each value was
-// shrunk by ~15% vs the original ladder (24/18/14/11/8) so the
-// default view feels less crowded.
-function pinSizeForZoom(zoom: number): number {
-  if (zoom >= 13) return 20;
-  if (zoom >= 11) return 15;
-  if (zoom >= 10) return 12;
-  if (zoom >= 9) return 9;
-  return 7;
-}
-
-function createPinIcon(
-  color: string,
-  size: number,
-  species: string
-): L.DivIcon {
-  const h = Math.round(size * 1.3);
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${h}" viewBox="0 0 24 31">
-    <path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 19 12 19s12-10 12-19C24 5.4 18.6 0 12 0z" fill="${color}"/>
-    <circle cx="12" cy="11" r="4.5" fill="white"/>
-  </svg>`;
-  return L.divIcon({
-    html: svg,
-    className: `whale-pin whale-pin--${speciesSlug(species)}`,
-    iconSize: [size, h],
-    iconAnchor: [size / 2, h],
-  });
-}
-
-function createSelectedPinIcon(zoom: number): L.DivIcon {
-  const size = Math.round(pinSizeForZoom(zoom) * 1.4);
-  const h = Math.round(size * 1.3);
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${h}" viewBox="0 0 24 31">
-    <path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 19 12 19s12-10 12-19C24 5.4 18.6 0 12 0z" fill="#111"/>
-    <circle cx="12" cy="11" r="4.5" fill="white"/>
-  </svg>`;
-  return L.divIcon({
-    html: svg,
-    className: "whale-pin selected",
-    iconSize: [size, h],
-    iconAnchor: [size / 2, h],
-  });
-}
-
-const iconCache = new Map<string, L.DivIcon>();
-
-function getPinIcon(species: string, isSelected: boolean, zoom: number): L.DivIcon {
-  if (isSelected) return createSelectedPinIcon(zoom);
-  const size = pinSizeForZoom(zoom);
-  const key = `${species}-${size}`;
-  if (!iconCache.has(key)) {
-    iconCache.set(key, createPinIcon(getMarkerColor(species), size, species));
-  }
-  return iconCache.get(key)!;
-}
-
 function ZoomHandler({ onZoom }: { onZoom: (zoom: number) => void }) {
   const map = useMapEvents({
     zoomend: () => onZoom(map.getZoom()),
     click: () => {},
   });
+  return null;
+}
+
+// Forwards the Leaflet map instance to an external ref. The ref is
+// only ever read (never written during normal use) — the Share button
+// queries it at click time to snapshot the current view.
+function MapRefBridge({
+  mapRef,
+}: {
+  mapRef?: React.MutableRefObject<L.Map | null>;
+}) {
+  const map = useMap();
+  useEffect(() => {
+    if (!mapRef) return;
+    mapRef.current = map;
+    return () => {
+      mapRef.current = null;
+    };
+  }, [map, mapRef]);
   return null;
 }
 
@@ -437,10 +394,12 @@ function WhaleMarkerLayer({
     const oms = omsRef.current;
     if (!oms) return;
 
-    // Remove any previously-added markers from both OMS and the map.
-    const existing = oms.getMarkers();
-    for (const m of existing) map.removeLayer(m);
-    oms.clearMarkers();
+    // Track every marker we add this pass in a local array — that's
+    // the authoritative list for cleanup. Relying on `oms.getMarkers()`
+    // inside the cleanup can leak markers when OMS's internal state
+    // drifts (e.g. across StrictMode's mount/unmount/mount cycle or
+    // when overlapping effect cleanups run out of order).
+    const created: L.Marker[] = [];
 
     for (const record of records) {
       const isSelected = selectedId === record.id;
@@ -468,25 +427,37 @@ function WhaleMarkerLayer({
         el.setAttribute("aria-label", buildPinAriaLabel(record));
       }
       oms.addMarker(marker);
+      created.push(marker);
     }
 
     return () => {
-      // Remove just the markers we added on this pass.
-      const current = oms.getMarkers();
-      for (const m of current) map.removeLayer(m);
-      oms.clearMarkers();
+      // Remove exactly the markers we created in this pass.
+      for (const m of created) {
+        map.removeLayer(m);
+        oms.removeMarker(m);
+      }
     };
   }, [records, selectedId, zoom, map, onMouseOver, onMouseOut]);
 
   return null;
 }
 
-export default function WhaleMap({ records, showBathymetry, showShippingLanes, showPre2013Lanes }: Props) {
+export default function WhaleMap({
+  records,
+  showBathymetry,
+  showShippingLanes,
+  showPre2013Lanes,
+  initialView,
+  initialPinId,
+  mapRef,
+}: Props) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedPos, setSelectedPos] = useState({ x: 0, y: 0 });
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(BAY_ZOOM);
+  const [zoom, setZoom] = useState(initialView ? Math.round(initialView.zoom) : BAY_ZOOM);
+  // Only apply the pin param once — after that, normal user clicks drive selection.
+  const didApplyInitialPin = useRef(false);
   const [bathymetry, setBathymetry] = useState<any>(null);
   const [shippingLanes, setShippingLanes] = useState<any>(null);
   const [pre2013Lanes, setPre2013Lanes] = useState<any>(null);
@@ -593,11 +564,47 @@ export default function WhaleMap({ records, showBathymetry, showShippingLanes, s
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
+  // Compute initial center / zoom ONCE, so later URL-free pans don't retrigger.
+  const initialCenter = useMemo<[number, number]>(
+    () => (initialView ? [initialView.lat, initialView.lng] : BAY_CENTER),
+    // initialView only applies on first mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+  const initialZoom = useMemo<number>(
+    () => (initialView ? initialView.zoom : BAY_ZOOM),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+
+  // Apply the initial pin from the URL once records are loaded. If the
+  // pin doesn't resolve to a real record, we silently skip it.
+  useEffect(() => {
+    if (didApplyInitialPin.current) return;
+    if (!initialPinId) return;
+    if (records.length === 0) return;
+    const found = records.find((r) => r.id === initialPinId);
+    if (!found) {
+      didApplyInitialPin.current = true;
+      return;
+    }
+    didApplyInitialPin.current = true;
+    // Defer so the map has a chance to render pins + layout a bit before
+    // we compute the card's on-screen anchor.
+    setTimeout(() => {
+      setSelectedId(found.id);
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        setSelectedPos({ x: rect.width * 0.5, y: rect.height * 0.5 });
+      }
+    }, 250);
+  }, [records, initialPinId]);
+
   return (
     <div className="map-container" ref={containerRef}>
       <MapContainer
-        center={BAY_CENTER}
-        zoom={BAY_ZOOM}
+        center={initialCenter}
+        zoom={initialZoom}
         minZoom={8}
         maxZoom={18}
         maxBounds={MAX_BOUNDS}
@@ -635,6 +642,7 @@ export default function WhaleMap({ records, showBathymetry, showShippingLanes, s
           <GeoJSON key="pre2013-lanes" data={pre2013Lanes} style={pre2013LaneStyle} />
         )}
         <ZoomHandler onZoom={setZoom} />
+        <MapRefBridge mapRef={mapRef} />
         <BayAreaLabels zoom={zoom} />
         <MapClickHandler onMapClick={handleMapClick} />
         <WhaleMarkerLayer
