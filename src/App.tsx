@@ -212,9 +212,11 @@ export default function App() {
     return (
       <div className="loading-screen">
         <div className="loading-screen-inner">
-          <div className="loading-screen-icon" role="img" aria-label="whale">
-            🐳
-          </div>
+          <img
+            className="loading-screen-icon"
+            src="/whale-icon.png"
+            alt="Bay Whale Strandings"
+          />
           <div className="loading-screen-title">Bay Whale Strandings</div>
           <div className="loading-screen-spinner" aria-hidden="true" />
           <div className="loading-screen-text">Loading data…</div>

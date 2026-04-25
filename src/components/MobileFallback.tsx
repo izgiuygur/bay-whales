@@ -2,9 +2,11 @@ export default function MobileFallback() {
   return (
     <div className="mobile-fallback">
       <div className="mobile-fallback-inner">
-        <div className="mobile-fallback-icon" role="img" aria-label="whale">
-          🐳
-        </div>
+        <img
+          className="mobile-fallback-icon"
+          src="/whale-icon.png"
+          alt="Bay Whale Strandings"
+        />
         <h1 className="mobile-fallback-title">Bay Whale Strandings</h1>
         <p className="mobile-fallback-text">
           This interactive map is best viewed on a desktop or larger screen.

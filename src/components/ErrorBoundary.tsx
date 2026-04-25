@@ -31,9 +31,11 @@ export default class ErrorBoundary extends Component<Props, State> {
       return (
         <div className="error-boundary">
           <div className="error-boundary-inner">
-            <div className="error-boundary-icon" role="img" aria-label="whale">
-              🐳
-            </div>
+            <img
+              className="error-boundary-icon"
+              src="/whale-icon.png"
+              alt="Bay Whale Strandings"
+            />
             <h1 className="error-boundary-title">Something went wrong</h1>
             <p className="error-boundary-text">
               The map ran into an unexpected error. Please reload the page to

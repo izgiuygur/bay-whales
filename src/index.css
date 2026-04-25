@@ -55,9 +55,11 @@ body {
 }
 
 .loading-screen-icon {
-  font-size: 48px;
-  line-height: 1;
-  margin-bottom: 16px;
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  margin: 0 auto 16px;
+  display: block;
 }
 
 .loading-screen-title {
@@ -447,12 +449,21 @@ body {
 }
 
 .rail-whale-icon {
-  font-size: 22px;
-  line-height: 1;
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
   flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  display: block;
+  /* The closed button has a blue background; the icon is a black
+     silhouette PNG. Invert it so the whale reads as white-on-blue.
+     On hover the button background flips to light, so revert the
+     filter to keep the whale dark. */
+  filter: invert(1) brightness(2);
+  transition: filter 0.15s ease;
+}
+
+.rail-collapsed:hover .rail-whale-icon {
+  filter: none;
 }
 
 .rail-collapsed-badge {
@@ -2158,9 +2169,11 @@ body {
 }
 
 .error-boundary-icon {
-  font-size: 56px;
-  line-height: 1;
-  margin-bottom: 20px;
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  margin: 0 auto 20px;
+  display: block;
 }
 
 .error-boundary-title {

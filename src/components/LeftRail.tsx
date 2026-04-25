@@ -300,9 +300,11 @@ export default function LeftRail({
         data-tooltip="Filters & layers"
         aria-label="Filters & layers"
       >
-        <span className="rail-whale-icon" role="img" aria-label="whale">
-          🐳
-        </span>
+        <img
+          className="rail-whale-icon"
+          src="/whale-icon.png"
+          alt=""
+        />
         {anyFilterApplied && (
           <span className="rail-collapsed-badge" aria-hidden="true">
             {totalActive}
