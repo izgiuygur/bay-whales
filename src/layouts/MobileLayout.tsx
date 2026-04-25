@@ -100,7 +100,7 @@ export default function MobileLayout(props: Props) {
         }
       />
 
-      <IntroStrip recordCount={totalRecords} />
+      <IntroStrip shownCount={records.length} totalCount={totalRecords} />
 
       <YearStrip
         min={years.min}

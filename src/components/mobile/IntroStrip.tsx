@@ -1,47 +1,42 @@
 import { useState } from "react";
 
-const STORAGE_KEY = "bws.introDismissed";
-
-function readDismissedInitial(): boolean {
-  // Read synchronously so we don't flash the strip before hiding it.
-  if (typeof window === "undefined") return false;
-  try {
-    return window.localStorage.getItem(STORAGE_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
 interface Props {
-  recordCount: number;
+  /** Currently-visible (filtered) stranding count. */
+  shownCount: number;
+  /** Unfiltered total — appears as "of N" when filters are active. */
+  totalCount: number;
 }
 
-export default function IntroStrip({ recordCount }: Props) {
-  const [dismissed, setDismissed] = useState<boolean>(readDismissedInitial);
+// Dismiss is in-memory only on purpose: the user wants the strip to
+// come back on reload rather than stay hidden across visits.
+export default function IntroStrip({ shownCount, totalCount }: Props) {
+  const [dismissed, setDismissed] = useState(false);
 
   if (dismissed) return null;
 
-  const dismiss = () => {
-    try {
-      window.localStorage.setItem(STORAGE_KEY, "1");
-    } catch {
-      // Best effort — still hide for this session.
-    }
-    setDismissed(true);
-  };
+  const filtered = shownCount !== totalCount;
 
   return (
     <section className="m-intro" aria-label="About this map">
       <p className="m-intro-text">
-        Tracking <strong>{recordCount}</strong> whale strandings reported
-        across the San Francisco Bay Area since 2005. Data from NOAA
-        Fisheries, The Marine Mammal Center, and the California Academy
-        of Sciences.
+        {filtered ? (
+          <>
+            Showing <strong>{shownCount}</strong> of {totalCount} whale
+            strandings reported across the San Francisco Bay Area since 2005.
+          </>
+        ) : (
+          <>
+            Tracking <strong>{totalCount}</strong> whale strandings reported
+            across the San Francisco Bay Area since 2005.
+          </>
+        )}{" "}
+        Data from NOAA Fisheries, The Marine Mammal Center, and the
+        California Academy of Sciences.
       </p>
       <button
         type="button"
         className="m-intro-close"
-        onClick={dismiss}
+        onClick={() => setDismissed(true)}
         aria-label="Dismiss introduction"
       >
         &times;

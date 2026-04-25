@@ -22,9 +22,24 @@ export default function MobileHeader({
     ) + countSelectedSpecies(filters.species);
   const anyFilterApplied = Object.values(filters).some((s) => s.size > 0);
 
+  // Tapping the title resets the page to the bare home URL — same
+  // gesture as clicking a site logo on most web apps. We use a full
+  // navigation (not router) so any shared-link query params are
+  // dropped and React state is cleanly re-initialized.
+  const goHome = () => {
+    window.location.href = "/";
+  };
+
   return (
     <header className="m-header">
-      <div className="m-header-title">Bay Whale Strandings</div>
+      <button
+        type="button"
+        className="m-header-title"
+        onClick={goHome}
+        aria-label="Bay Whale Strandings — reset to home"
+      >
+        Bay Whale Strandings
+      </button>
       <div className="m-header-actions">
         <button
           type="button"
