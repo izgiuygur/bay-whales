@@ -9,7 +9,6 @@ import TimelineSlider from "./components/TimelineSlider";
 import RecordCount from "./components/RecordCount";
 import ShareButton from "./components/ShareButton";
 import HeroIntro from "./components/HeroIntro";
-import Footer from "./components/Footer";
 import AboutDataModal from "./components/AboutDataModal";
 import MobileLayout from "./layouts/MobileLayout";
 import { useIsMobile, useMediaQuery } from "./lib/useMediaQuery";
@@ -369,16 +368,47 @@ export default function App() {
           onChange={setSelectedRange}
           yearCounts={yearCounts}
         />
-        <button
-          type="button"
-          className="map-data-note"
-          onClick={openAbout}
-        >
-          Records have important limitations —{" "}
-          <span className="map-data-note-link">about the data</span>
-        </button>
+        {/* Bottom-edge gradient lifts the attribution off whatever
+            basemap region is underneath, without coloring the map. */}
+        <div className="map-fadeout" aria-hidden="true" />
+        {/* Single corner attribution block — data + basemap stacked,
+            equal visual weight, both right-aligned. */}
+        <footer className="map-attribution">
+          <div className="map-attribution-line">
+            Data: NOAA Fisheries (WCR-MMSN), accessed{" "}
+            {/* TODO: derive this from a build-time data-update constant
+                once the ingest sets one. Hardcoded to match the dataset
+                we're shipping with. */}
+            April 2026
+            {" · "}
+            <button
+              type="button"
+              className="map-attribution-btn"
+              onClick={openAbout}
+            >
+              About the data
+            </button>
+          </div>
+          <div className="map-attribution-line">
+            Basemap{" "}
+            <a
+              href="https://carto.com/attributions"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              © CARTO
+            </a>
+            {" · "}
+            <a
+              href="https://www.openstreetmap.org/copyright"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              © OpenStreetMap contributors
+            </a>
+          </div>
+        </footer>
       </div>
-      <Footer onAboutClick={openAbout} />
       <AboutDataModal open={aboutOpen} onClose={closeAbout} />
       <Analytics />
     </div>

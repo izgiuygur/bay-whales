@@ -893,29 +893,84 @@ body {
   background: #ffffff;
 }
 
+/* Bottom-right attribution. Two stacked lines (data on top, basemap
+   below), equal visual weight. The translucent gradient strip below
+   (.map-fadeout) keeps both legible against any basemap region. */
 .map-attribution {
   position: absolute;
   bottom: 6px;
   right: 10px;
   z-index: 400;
-  font-size: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+  font-family: var(--font);
+  font-size: 11px;
   color: #888;
-  background: rgba(255, 255, 255, 0.75);
-  padding: 3px 8px;
-  border-radius: 3px;
   letter-spacing: 0.1px;
+  line-height: 1.5;
+  margin: 0;
   pointer-events: auto;
   max-width: 70vw;
 }
 
+.map-attribution-line {
+  font-size: inherit;
+  color: inherit;
+}
+
 .map-attribution a {
-  color: #666;
+  color: inherit;
   text-decoration: none;
 }
 
 .map-attribution a:hover {
   color: #0051BA;
   text-decoration: underline;
+}
+
+/* The "About the data" trigger is a button so it can open the modal,
+   but it must visually match the surrounding inline link styling so
+   line 1 reads as a single attribution string. */
+.map-attribution-btn {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  text-decoration: none;
+  letter-spacing: inherit;
+}
+
+.map-attribution-btn:hover {
+  color: #0051BA;
+  text-decoration: underline;
+}
+
+.map-attribution-btn:focus-visible {
+  outline: 2px solid #0051BA;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Soft white gradient at the bottom of the map, behind the
+   attribution block. Pure visual scrim — no clicks, no map blocks. */
+.map-fadeout {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 60px;
+  z-index: 350;
+  pointer-events: none;
+  background: linear-gradient(
+    to top,
+    rgba(255, 255, 255, 0.6) 0px,
+    rgba(255, 255, 255, 0) 60px
+  );
 }
 
 /* Whiten land while keeping faint green for parks.
@@ -1310,81 +1365,6 @@ body {
 /* ── Site footer (desktop) ──
    A compact single-line attribution that sits below the map. Tries
    to stay on one line at desktop widths; wraps gracefully if not. */
-
-.site-footer {
-  flex: 0 0 auto;
-  padding: 8px 24px;
-  border-top: 1px solid rgba(89, 89, 89, 0.4);
-  font-size: 11px;
-  color: #555;
-  letter-spacing: 0.1px;
-  line-height: 1.4;
-  background: #fff;
-  text-align: center;
-}
-
-.site-footer-link {
-  font: inherit;
-  color: #0051BA;
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  text-decoration-color: rgba(0, 81, 186, 0.45);
-}
-
-.site-footer-link:hover {
-  text-decoration-color: #0051BA;
-}
-
-.site-footer-link:focus-visible {
-  outline: 2px solid #0051BA;
-  outline-offset: 2px;
-  border-radius: 2px;
-}
-
-/* Contextual "Records have important limitations" note shown at the
-   bottom-left of the map (desktop). Subtle so it doesn't compete
-   with the data, but always visible. */
-.map-data-note {
-  position: absolute;
-  left: 8px;
-  bottom: 6px;
-  z-index: 380;
-  background: rgba(255, 255, 255, 0.96);
-  border: 1px solid rgba(0, 0, 0, 0.16);
-  border-radius: 4px;
-  padding: 5px 10px;
-  font-family: var(--font);
-  font-size: 11px;
-  color: #444;
-  cursor: pointer;
-  letter-spacing: 0.1px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-}
-
-.map-data-note:hover {
-  background: #fff;
-  border-color: rgba(0, 0, 0, 0.28);
-}
-
-.map-data-note-link {
-  color: #0051BA;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  text-decoration-color: rgba(0, 81, 186, 0.45);
-}
-
-.map-data-note:hover .map-data-note-link {
-  text-decoration-color: #0051BA;
-}
-
-.map-data-note:focus-visible {
-  outline: 2px solid #0051BA;
-  outline-offset: 2px;
-}
 
 /* ── About-the-data modal ──
    Shared component used from both the footer and the contextual note.
