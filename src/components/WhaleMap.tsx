@@ -401,6 +401,7 @@ function WhaleMarkerLayer({
     // when overlapping effect cleanups run out of order).
     const created: L.Marker[] = [];
 
+    let pinIndex = 0;
     for (const record of records) {
       const isSelected = selectedId === record.id;
       const marker = L.marker([record.latitude, record.longitude], {
@@ -425,9 +426,15 @@ function WhaleMarkerLayer({
       if (el) {
         el.setAttribute("role", "button");
         el.setAttribute("aria-label", buildPinAriaLabel(record));
+        // Per-pin index lets the hero stagger animation pick up a
+        // small unique delay via CSS calc(var(--pin-index) * 4ms).
+        // Cheap to set unconditionally; the animation only fires
+        // when body has the bws-staggering class.
+        el.style.setProperty("--pin-index", String(pinIndex));
       }
       oms.addMarker(marker);
       created.push(marker);
+      pinIndex++;
     }
 
     return () => {
@@ -689,8 +696,6 @@ export default function WhaleMap({
         >
           © OpenStreetMap contributors
         </a>
-        {" · "}Data: NOAA Fisheries, The Marine Mammal Center, California
-        Academy of Sciences
       </div>
     </div>
   );

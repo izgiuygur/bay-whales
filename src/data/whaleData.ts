@@ -114,6 +114,7 @@ function normalizeRow(row: Record<string, string>, index: number): WhaleRecord |
 
   return {
     id: row.source_record_id || `whale-${index}`,
+    fieldId: (row.field_id || "").trim(),
     dateObserved: dateStr,
     year,
     month,

@@ -203,6 +203,11 @@ export default function InfoCard({ record, position, onClose }: Props) {
               <span className="info-card-meta-label">Location confidence:</span>{" "}
               <span className="info-card-meta-value">{locationConfidence}</span>
             </div>
+            {record.fieldId && (
+              <div className="info-card-record-id">
+                Record ID: <span>{record.fieldId}</span>
+              </div>
+            )}
           </div>
         </div>
       </div>

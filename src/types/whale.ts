@@ -1,5 +1,8 @@
 export interface WhaleRecord {
   id: string;
+  /** Network member's local field number, e.g. "CAS-RB-5599" or
+   *  "TMMC-C-199". Used in popups for researcher reference. */
+  fieldId: string;
   dateObserved: string;
   year: number;
   month: number;

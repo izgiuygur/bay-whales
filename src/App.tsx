@@ -8,8 +8,11 @@ import WhaleMap from "./components/WhaleMap";
 import TimelineSlider from "./components/TimelineSlider";
 import RecordCount from "./components/RecordCount";
 import ShareButton from "./components/ShareButton";
+import HeroIntro from "./components/HeroIntro";
+import Footer from "./components/Footer";
+import AboutDataModal from "./components/AboutDataModal";
 import MobileLayout from "./layouts/MobileLayout";
-import { useIsMobile } from "./lib/useMediaQuery";
+import { useIsMobile, useMediaQuery } from "./lib/useMediaQuery";
 import { loadWhaleData } from "./data/whaleData";
 import type { WhaleRecord } from "./types/whale";
 import type { Filters, FilterKey } from "./types/filters";
@@ -18,6 +21,23 @@ import {
   parse as parseShareUrl,
   type ShareableState,
 } from "./lib/shareState";
+
+const HERO_SESSION_KEY = "bws.heroSeen";
+
+// Snapshot whether the hero should play, BEFORE first render. Once the
+// user has seen it in this session, we never re-evaluate; otherwise a
+// skip would bounce briefly through "playing" state on the next render.
+function readShouldPlayHeroInitial(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    if (window.sessionStorage.getItem(HERO_SESSION_KEY) === "1") return false;
+  } catch {
+    // sessionStorage can throw in private mode; fall through to play.
+  }
+  // We can't read matchMedia here (the hook does it live below); this
+  // is just an initial best-guess to avoid a flash.
+  return true;
+}
 
 // Snapshot the URL ONCE at module load — we never read it again after
 // hydration. This decouples any subsequent render from the location.
@@ -86,6 +106,13 @@ export default function App() {
   // Live reference to the Leaflet map instance — used by Share button
   // to snapshot the current view. We never write to it.
   const mapRef = useRef<L.Map | null>(null);
+
+  // "About the data" modal — single instance lifted to the App so the
+  // footer link, the contextual note near the map, and the mobile
+  // layout all share the same modal.
+  const [aboutOpen, setAboutOpen] = useState(false);
+  const openAbout = useCallback(() => setAboutOpen(true), []);
+  const closeAbout = useCallback(() => setAboutOpen(false), []);
 
   useEffect(() => {
     loadWhaleData().then(setRecords);
@@ -207,6 +234,29 @@ export default function App() {
   }, [filters, selectedRange, showBathymetry, showShippingLanes, showPre2013Lanes]);
 
   const isMobile = useIsMobile();
+  const prefersReducedMotion = useMediaQuery(
+    "(prefers-reduced-motion: reduce)"
+  );
+
+  // Hero plays only on desktop, when the user hasn't seen it this
+  // session, and when reduced-motion is not requested. Once started
+  // it runs to completion (or skip).
+  const [heroPlaying, setHeroPlaying] = useState<boolean>(() =>
+    readShouldPlayHeroInitial()
+  );
+
+  // Hard-skip on (prefers-reduced-motion) or mobile: never render hero.
+  const heroEligible = !isMobile && !prefersReducedMotion;
+  const showHero = heroPlaying && heroEligible;
+
+  const handleHeroComplete = useCallback(() => {
+    try {
+      window.sessionStorage.setItem(HERO_SESSION_KEY, "1");
+    } catch {
+      // Best effort; the in-memory flag is enough for this tab.
+    }
+    setHeroPlaying(false);
+  }, []);
 
   if (records.length === 0) {
     return (
@@ -248,7 +298,9 @@ export default function App() {
           onTogglePre2013Lanes={() => setShowPre2013Lanes((v) => !v)}
           getShareState={getShareState}
           initialPinId={initialUrlState.pinId ?? null}
+          onAboutClick={openAbout}
         />
+        <AboutDataModal open={aboutOpen} onClose={closeAbout} />
         <Analytics />
       </>
     );
@@ -256,6 +308,13 @@ export default function App() {
 
   return (
     <div className="app">
+      {showHero && (
+        <HeroIntro
+          totalCount={records.length}
+          startYear={years.min}
+          onComplete={handleHeroComplete}
+        />
+      )}
       <Header />
       <div className="main-area">
         <LeftRail
@@ -310,7 +369,17 @@ export default function App() {
           onChange={setSelectedRange}
           yearCounts={yearCounts}
         />
+        <button
+          type="button"
+          className="map-data-note"
+          onClick={openAbout}
+        >
+          Records have important limitations —{" "}
+          <span className="map-data-note-link">about the data</span>
+        </button>
       </div>
+      <Footer onAboutClick={openAbout} />
+      <AboutDataModal open={aboutOpen} onClose={closeAbout} />
       <Analytics />
     </div>
   );

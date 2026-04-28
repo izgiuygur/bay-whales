@@ -1307,6 +1307,378 @@ body {
   font-weight: 700;
 }
 
+/* ── Site footer (desktop) ──
+   A compact single-line attribution that sits below the map. Tries
+   to stay on one line at desktop widths; wraps gracefully if not. */
+
+.site-footer {
+  flex: 0 0 auto;
+  padding: 8px 24px;
+  border-top: 1px solid rgba(89, 89, 89, 0.4);
+  font-size: 11px;
+  color: #555;
+  letter-spacing: 0.1px;
+  line-height: 1.4;
+  background: #fff;
+  text-align: center;
+}
+
+.site-footer-link {
+  font: inherit;
+  color: #0051BA;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: rgba(0, 81, 186, 0.45);
+}
+
+.site-footer-link:hover {
+  text-decoration-color: #0051BA;
+}
+
+.site-footer-link:focus-visible {
+  outline: 2px solid #0051BA;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Contextual "Records have important limitations" note shown at the
+   bottom-left of the map (desktop). Subtle so it doesn't compete
+   with the data, but always visible. */
+.map-data-note {
+  position: absolute;
+  left: 8px;
+  bottom: 6px;
+  z-index: 380;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(0, 0, 0, 0.16);
+  border-radius: 4px;
+  padding: 5px 10px;
+  font-family: var(--font);
+  font-size: 11px;
+  color: #444;
+  cursor: pointer;
+  letter-spacing: 0.1px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.map-data-note:hover {
+  background: #fff;
+  border-color: rgba(0, 0, 0, 0.28);
+}
+
+.map-data-note-link {
+  color: #0051BA;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: rgba(0, 81, 186, 0.45);
+}
+
+.map-data-note:hover .map-data-note-link {
+  text-decoration-color: #0051BA;
+}
+
+.map-data-note:focus-visible {
+  outline: 2px solid #0051BA;
+  outline-offset: 2px;
+}
+
+/* ── About-the-data modal ──
+   Shared component used from both the footer and the contextual note.
+   Solid white panel on a dimmed backdrop, scrollable, dismissable. */
+
+.about-modal-root {
+  position: fixed;
+  inset: 0;
+  z-index: 11000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  font-family: var(--font);
+}
+
+.about-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(16, 24, 40, 0.45);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  /* Make the backdrop announce as decoration; the close button is the
+     real escape hatch. */
+  appearance: none;
+}
+
+.about-modal-panel {
+  position: relative;
+  background: #ffffff;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 600px;
+  max-height: calc(100vh - 64px);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 50px rgba(16, 24, 40, 0.25);
+  overflow: hidden;
+}
+
+.about-modal-close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  background: none;
+  border: none;
+  font-size: 26px;
+  line-height: 1;
+  color: rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  border-radius: 6px;
+  z-index: 1;
+}
+
+.about-modal-close:hover {
+  color: rgba(0, 0, 0, 0.85);
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.about-modal-close:focus-visible {
+  outline: 2px solid #0051BA;
+  outline-offset: 2px;
+}
+
+.about-modal-body {
+  overflow-y: auto;
+  padding: 28px 32px 32px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.about-modal-title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: #1a1a1a;
+  margin: 0 0 14px;
+}
+
+.about-modal-h3 {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #1a1a1a;
+  margin: 22px 0 8px;
+}
+
+.about-modal-p {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #333;
+  margin: 0 0 10px;
+}
+
+.about-modal-p i {
+  font-style: italic;
+}
+
+.about-modal-list {
+  list-style: disc;
+  padding-left: 22px;
+  margin: 0 0 4px;
+}
+
+.about-modal-list li {
+  font-size: 14px;
+  line-height: 1.55;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+@media (max-width: 600px) {
+  .about-modal-root {
+    padding: 12px;
+  }
+  .about-modal-panel {
+    max-height: calc(100vh - 24px);
+  }
+  .about-modal-body {
+    padding: 20px 20px 24px;
+  }
+  .about-modal-title {
+    font-size: 18px;
+  }
+  .about-modal-p,
+  .about-modal-list li {
+    font-size: 13px;
+  }
+}
+
+/* ── Record ID line (desktop info card) ──
+   Researcher-facing identifier, visually muted so it doesn't
+   compete with species / date / location. */
+.info-card-record-id {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  font-size: 11px;
+  color: #999;
+  letter-spacing: 0.2px;
+}
+
+.info-card-record-id span {
+  color: #555;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  letter-spacing: 0;
+}
+
+/* ── Hero intro (desktop only) ──
+   First-visit-per-session opening. The overlay sits on top of the
+   live UI; once the hold phase ends, hero opacity goes 1→0 and the
+   live UI opacity goes 0→1 over a single 600ms crossfade. The two
+   are intentionally NOT linked by any morph — the hero text fades
+   out where it sits; the live UI fades in where it lives. No
+   transforms, no scale, no FLIP. */
+
+.bws-hero {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  pointer-events: auto;
+  opacity: 1;
+}
+
+/* Resolving phase — overlay fades from 1 → 0 in place. Children move
+   with it because they're absolutely positioned inside, so they fade
+   uniformly without any drift. */
+.bws-hero.bws-hero-resolving {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 600ms ease-out;
+}
+
+/* Skip path — same fade, compressed to 200ms. */
+.bws-hero.bws-hero-skipping {
+  transition-duration: 200ms !important;
+}
+
+.bws-hero-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.bws-hero-title,
+.bws-hero-number,
+.bws-hero-anchor {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  text-align: center;
+  color: #1a1a1a;
+  pointer-events: none;
+}
+
+.bws-hero-title {
+  top: 24%;
+  font-family: var(--font);
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-size: clamp(20px, 3.4vw, 34px);
+}
+
+.bws-hero-number {
+  top: 36%;
+  font-family: var(--font);
+  font-weight: 900;
+  font-size: clamp(110px, 18vw, 240px);
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.bws-hero-anchor {
+  top: 78%;
+  font-family: var(--font);
+  font-size: 14px;
+  color: #666;
+  line-height: 1.55;
+  letter-spacing: 0.2px;
+}
+
+.bws-hero-skip {
+  position: relative;
+  margin-bottom: 28px;
+  padding: 8px 14px;
+  background: none;
+  border: none;
+  font-family: var(--font);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: #999;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-color: rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+  transition: color 160ms ease;
+}
+
+.bws-hero-skip:hover {
+  color: #1a1a1a;
+}
+
+/* Live UI — every direct child of .app except the hero overlay
+   itself. Held at opacity 0 while the hero plays so the user sees
+   only the hero. When the resolve phase begins, fades up to 1 over
+   the same 600ms (or 200ms when skipping). */
+body.bws-hero-active .app > *:not(.bws-hero) {
+  opacity: 0;
+}
+
+body.bws-hero-active.bws-resolving .app > *:not(.bws-hero) {
+  opacity: 1;
+  transition: opacity 600ms ease-out;
+}
+
+body.bws-hero-active.bws-resolving.bws-skipping .app > *:not(.bws-hero) {
+  transition-duration: 200ms;
+}
+
+/* Pin stagger: each marker gets a tiny per-pin delay only while the
+   body has bws-staggering class (set ~200ms into the crossfade). */
+@keyframes bws-pin-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+body.bws-staggering .whale-pin {
+  animation: bws-pin-fade 240ms ease-out backwards;
+  animation-delay: calc(var(--pin-index, 0) * 4ms);
+}
+
+body.bws-skipping .whale-pin {
+  animation: bws-pin-fade 100ms ease-out backwards !important;
+  animation-delay: 0ms !important;
+}
+
+/* The reduced-motion media query is a hard skip handled in JS (the
+   hero never renders), so no @media rule needed here. */
+
 /* ── Mobile layout ──
    Phones (< 768px) get an entirely separate layout driven by
    MobileLayout.tsx. Tablets and desktops keep the existing view. */
@@ -1732,8 +2104,44 @@ body {
 }
 
 .m-footer-credit {
-  margin-top: 6px;
+  margin-top: 8px;
   color: #888;
+}
+
+/* Inline link button for the mobile footer's "About the data" trigger.
+   Keeps the look identical to the surrounding anchor links. */
+.m-footer-link {
+  font: inherit;
+  color: #0051BA;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: rgba(0, 81, 186, 0.5);
+}
+
+.m-footer-link:hover {
+  text-decoration-color: #0051BA;
+}
+
+/* Record ID line in the mobile detail sheet — same convention as the
+   desktop info-card. */
+.m-detail-record-id {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  font-size: 11px;
+  color: #999;
+  letter-spacing: 0.2px;
+}
+
+.m-detail-record-id span {
+  color: #555;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  letter-spacing: 0;
 }
 
 /* Bottom sheet infrastructure ──────────────────────── */

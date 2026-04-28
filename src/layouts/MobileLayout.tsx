@@ -36,6 +36,7 @@ interface Props {
   onTogglePre2013Lanes: () => void;
   getShareState: () => ShareableState;
   initialPinId?: string | null;
+  onAboutClick: () => void;
 }
 
 export default function MobileLayout(props: Props) {
@@ -59,6 +60,7 @@ export default function MobileLayout(props: Props) {
     onTogglePre2013Lanes,
     getShareState,
     initialPinId,
+    onAboutClick,
   } = props;
 
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -131,31 +133,15 @@ export default function MobileLayout(props: Props) {
 
       <footer className="m-footer">
         <div className="m-footer-sources">
-          Data from{" "}
-          <a
-            href="https://www.fisheries.noaa.gov/"
-            target="_blank"
-            rel="noopener noreferrer"
+          Data: West Coast Region Marine Mammal Stranding Network
+          (WCR-MMSN), coordinated by NOAA Fisheries. Accessed April 7, 2026.{" "}
+          <button
+            type="button"
+            className="m-footer-link"
+            onClick={onAboutClick}
           >
-            NOAA Fisheries
-          </a>
-          ,{" "}
-          <a
-            href="https://www.marinemammalcenter.org/"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            The Marine Mammal Center
-          </a>
-          , and{" "}
-          <a
-            href="https://www.calacademy.org/"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            California Academy of Sciences
-          </a>
-          .
+            About the data
+          </button>
         </div>
         <div className="m-footer-credit">
           Designed and built by{" "}

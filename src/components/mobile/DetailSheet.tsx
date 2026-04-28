@@ -183,6 +183,11 @@ function DetailBody({ record }: { record: WhaleRecord }) {
             <span className="m-detail-meta-label">Location confidence:</span>{" "}
             <span className="m-detail-meta-value">{locationConfidence}</span>
           </div>
+          {record.fieldId && (
+            <div className="m-detail-record-id">
+              Record ID: <span>{record.fieldId}</span>
+            </div>
+          )}
         </div>
       </div>
     </div>
