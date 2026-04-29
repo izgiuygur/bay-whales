@@ -25,7 +25,6 @@ interface PillSpec {
   key: string;
   label: string;
   color: string;
-  dotColor: string;
   isActive: boolean;
   ariaLabel: string;
   onToggle: () => void;
@@ -44,7 +43,6 @@ export default function SpeciesFilter({
       key: species,
       label: species,
       color: colors.active,
-      dotColor: colors.pin,
       isActive,
       ariaLabel: isActive ? `Hide ${species}` : `Show ${species}`,
       onToggle: () => onToggleSpecies(species),
@@ -57,7 +55,6 @@ export default function SpeciesFilter({
     key: "__other__",
     label: "Other",
     color: OTHER_SPECIES_COLOR,
-    dotColor: OTHER_SPECIES_COLOR,
     isActive: anyOtherVisible,
     ariaLabel: anyOtherVisible
       ? "Hide all other species"
@@ -88,16 +85,6 @@ export default function SpeciesFilter({
           aria-pressed={p.isActive}
           aria-label={p.ariaLabel}
         >
-          {/* Always render the dot so the pill width stays constant;
-              hide it visually when the pill is active. */}
-          <span
-            className="species-pill-dot"
-            style={{
-              backgroundColor: p.dotColor,
-              visibility: p.isActive ? "hidden" : "visible",
-            }}
-            aria-hidden="true"
-          />
           {p.label}
         </button>
       ))}

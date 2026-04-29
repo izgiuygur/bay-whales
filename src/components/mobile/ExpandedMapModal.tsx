@@ -138,7 +138,6 @@ function PillRow({
     key: string;
     label: string;
     color: string;
-    dotColor: string;
     isActive: boolean;
     onToggle: () => void;
   }
@@ -149,7 +148,6 @@ function PillRow({
       key: species,
       label: species.replace(" whale", ""),
       color: colors.active,
-      dotColor: colors.pin,
       isActive,
       onToggle: () => onToggleSpecies(species),
     };
@@ -159,7 +157,6 @@ function PillRow({
     key: "__other__",
     label: "Other",
     color: OTHER_SPECIES_COLOR,
-    dotColor: OTHER_SPECIES_COLOR,
     isActive: anyOtherVisible,
     onToggle: () => onToggleGroup(OTHER_SPECIES, anyOtherVisible),
   });
@@ -179,14 +176,6 @@ function PillRow({
           aria-pressed={p.isActive}
           aria-label={p.isActive ? `Hide ${p.label}` : `Show ${p.label}`}
         >
-          <span
-            className="species-pill-dot"
-            style={{
-              backgroundColor: p.dotColor,
-              visibility: p.isActive ? "hidden" : "visible",
-            }}
-            aria-hidden="true"
-          />
           {p.label}
         </button>
       ))}

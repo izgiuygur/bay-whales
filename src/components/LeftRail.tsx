@@ -327,9 +327,9 @@ export default function LeftRail({
 
           <div className="rail-scroll">
             <p className="rail-about">
-              Bay Whale Strandings maps whale strandings across the San
-              Francisco Bay Area from 2005 onward. Explore the data by year,
-              species, and reported findings.
+              An interactive record of every reported whale stranding in
+              the San Francisco Bay Area since 2005. Filter by year,
+              species, county, and more.
             </p>
 
             {/* Filters heading */}
@@ -480,10 +480,6 @@ export default function LeftRail({
                 where animals were found or reported, not necessarily where
                 mortality occurred. Reported findings are not definitive causes
                 of death.
-              </p>
-              <p className="rail-source">
-                Sources: NOAA Fisheries, Marine Mammal Center, California
-                Academy of Sciences
               </p>
               <p className="rail-credit">
                 Designed and built by{" "}

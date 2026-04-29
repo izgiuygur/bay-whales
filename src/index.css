@@ -157,16 +157,6 @@ body {
   line-height: 1;
 }
 
-/* Small color dot shown inside INACTIVE pills so the pill still
-   functions as a legend swatch even when the filter is off. */
-.species-pill-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  display: inline-block;
-  flex-shrink: 0;
-}
-
 .species-pill:hover {
   opacity: 0.85;
 }
@@ -836,7 +826,7 @@ body {
 .rail-about {
   font-size: 13px;
   line-height: 1.4;
-  color: #555;
+  color: #1a1a1a;
   margin: 0 0 40px;
   padding: 0 16px;
 }
@@ -851,11 +841,6 @@ body {
 .rail-note-label {
   font-weight: 600;
   color: #555;
-}
-
-.rail-source {
-  font-size: 11px;
-  color: var(--text-muted);
 }
 
 .rail-credit {
@@ -1559,47 +1544,58 @@ body {
   pointer-events: none;
 }
 
-.bws-hero-title,
-.bws-hero-number,
-.bws-hero-anchor {
+/* Two centered hero lines — both uppercase, same size, same color,
+   same tracking, same base weight. The only contrast is the dynamic
+   number, which is one weight heavier so it has a little more pull. */
+.bws-hero-line {
   position: absolute;
   left: 0;
   width: 100%;
   text-align: center;
+  font-family: var(--font);
+  /* Headline weight — substantial, but the dynamic number below is
+     pushed even bolder via text-stroke. */
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-size: clamp(20px, 3.4vw, 34px);
   color: #1a1a1a;
   pointer-events: none;
 }
 
-.bws-hero-title {
-  top: 24%;
-  font-family: var(--font);
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  font-size: clamp(20px, 3.4vw, 34px);
-}
-
-.bws-hero-number {
-  top: 36%;
-  font-family: var(--font);
+/* Inline span around the dynamic count so just "216" reads bolder,
+   not the whole headline. font-weight 900 is the heaviest the
+   stack provides, so we add a subtle text-stroke to push the
+   weight past the available range and tighten the letter-spacing
+   so the digits feel chunkier still. */
+.bws-hero-line--num {
   font-weight: 900;
-  font-size: clamp(110px, 18vw, 240px);
-  letter-spacing: -0.02em;
-  line-height: 1;
+  -webkit-text-stroke: 0.6px currentColor;
+  letter-spacing: 0;
 }
 
-.bws-hero-anchor {
-  top: 78%;
-  font-family: var(--font);
-  font-size: 14px;
-  color: #666;
-  line-height: 1.55;
-  letter-spacing: 0.2px;
+/* Supporting clause — sentence case (so no uppercase transform),
+   slightly smaller, lighter weight, same black color as the headline. */
+.bws-hero-line--sub {
+  font-weight: 400;
+  font-size: clamp(15px, 2.4vw, 22px);
+  text-transform: none;
+  letter-spacing: 0.02em;
 }
+
+/* Block centered around 50% of the viewport, with a tighter gap
+   between the two lines and the Skip link tucked just under them. */
+.bws-hero-line:nth-of-type(1) { top: 47%; }
+.bws-hero-line:nth-of-type(2) { top: 53%; }
 
 .bws-hero-skip {
-  position: relative;
-  margin-bottom: 28px;
+  /* Tucked just below the supporting clause rather than pinned to
+     the bottom of the viewport, so the whole hero reads as one
+     compact centered block. */
+  position: absolute;
+  top: 60%;
+  left: 50%;
+  transform: translateX(-50%);
   padding: 8px 14px;
   background: none;
   border: none;

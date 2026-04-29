@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 // Choreography (ms from mount):
 //   0 → HOLD_END     held hero, overlay fully opaque, live UI 0%
@@ -10,10 +10,10 @@ import { useEffect, useRef, useState } from "react";
 // any morph — they're two independent states crossfaded between. The
 // hero text fades out where it sits; the live UI fades in where it
 // lives. No position transforms, no scale, no FLIP measurement.
-const HOLD_END = 1500;
+const HOLD_END = 3000;
 const FADE_MS = 600;
-const STAGGER_AT = HOLD_END + 200; // 1700ms
-const COMPLETE = HOLD_END + FADE_MS; // 2100ms
+const STAGGER_AT = HOLD_END + 200; // 3200ms
+const COMPLETE = HOLD_END + FADE_MS; // 3600ms
 
 // Skip cuts everything to the resolved state in this much time.
 // Still a crossfade, just compressed.
@@ -76,46 +76,26 @@ export default function HeroIntro({
     };
   }, [onComplete]);
 
-  // Skip handler — fires on any user input or window resize. Cuts the
-  // animation to its resolved state in SKIP_MS via the same crossfade.
-  useEffect(() => {
+  // Skip handler — only fires from the explicit "Skip intro" button.
+  // We deliberately don't listen for click/keydown/wheel/touchstart/
+  // resize on the document, because those fired too eagerly (trackpad
+  // inertia, devtools opening, accidental clicks) and produced
+  // unpredictable hero durations.
+  const handleSkip = useCallback(() => {
     if (completeRef.current) return;
-    const handleSkip = () => {
+    setSkipping(true);
+    setResolving(true);
+    document.body.classList.add("bws-skipping");
+    document.body.classList.add("bws-resolving");
+    window.setTimeout(() => {
       if (completeRef.current) return;
-      setSkipping(true);
-      setResolving(true);
-      document.body.classList.add("bws-skipping");
-      document.body.classList.add("bws-resolving");
-      window.setTimeout(() => {
-        if (completeRef.current) return;
-        completeRef.current = true;
-        document.body.classList.remove("bws-hero-active");
-        document.body.classList.remove("bws-resolving");
-        document.body.classList.remove("bws-staggering");
-        document.body.classList.remove("bws-skipping");
-        onComplete();
-      }, SKIP_MS);
-    };
-
-    document.addEventListener("click", handleSkip, { once: true });
-    document.addEventListener("keydown", handleSkip, { once: true });
-    document.addEventListener("wheel", handleSkip, {
-      once: true,
-      passive: true,
-    });
-    document.addEventListener("touchstart", handleSkip, {
-      once: true,
-      passive: true,
-    });
-    window.addEventListener("resize", handleSkip, { once: true });
-
-    return () => {
-      document.removeEventListener("click", handleSkip);
-      document.removeEventListener("keydown", handleSkip);
-      document.removeEventListener("wheel", handleSkip);
-      document.removeEventListener("touchstart", handleSkip);
-      window.removeEventListener("resize", handleSkip);
-    };
+      completeRef.current = true;
+      document.body.classList.remove("bws-hero-active");
+      document.body.classList.remove("bws-resolving");
+      document.body.classList.remove("bws-staggering");
+      document.body.classList.remove("bws-skipping");
+      onComplete();
+    }, SKIP_MS);
   }, [onComplete]);
 
   void FADE_MS;
@@ -131,20 +111,18 @@ export default function HeroIntro({
   return (
     <div className={className} aria-hidden="true">
       <div className="bws-hero-stage">
-        <div className="bws-hero-title">Bay Whale Strandings</div>
-        <div className="bws-hero-number">{totalCount}</div>
-        <div className="bws-hero-anchor">
-          Stranded in the San Francisco Bay Area since {startYear}.
-          <br />
-          Each pin marks where one was found.
+        <div className="bws-hero-line">
+          <span className="bws-hero-line--num">{totalCount}</span> WHALE
+          STRANDINGS
+        </div>
+        <div className="bws-hero-line bws-hero-line--sub">
+          In the Bay Area since {startYear}
         </div>
       </div>
       <button
         type="button"
         className="bws-hero-skip"
-        // The document-wide click listener fires the skip path on any
-        // click, including this one (it bubbles). The button just
-        // exists as a visible affordance for the same gesture.
+        onClick={handleSkip}
       >
         Skip intro
       </button>

@@ -46,8 +46,8 @@ export const FEATURED_SPECIES: SpeciesKey[] = [
 // dot in the drawer. Matches the fallback pin color on the map.
 export const OTHER_SPECIES_COLOR = "#4a4a4a";
 
-// Pill legend color for a given species (featured species use their
-// `pin` color, everything else falls back to OTHER_SPECIES_COLOR).
+// Drawer-style dot color (legend swatch beside species names on
+// white). Featured species use their `pin` (medium) shade.
 export function getSpeciesDotColor(species: string): string {
   if (species in SPECIES_COLORS) {
     return SPECIES_COLORS[species as SpeciesKey].pin;

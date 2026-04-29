@@ -31,7 +31,6 @@ export default function SpeciesStrip({
     key: string;
     label: string;
     color: string;
-    dotColor: string;
     isActive: boolean;
     onToggle: () => void;
     ariaLabel: string;
@@ -43,7 +42,6 @@ export default function SpeciesStrip({
       key: species,
       label: species,
       color: colors.active,
-      dotColor: colors.pin,
       isActive,
       onToggle: () => onToggleSpecies(species),
       ariaLabel: isActive ? `Hide ${species}` : `Show ${species}`,
@@ -55,7 +53,6 @@ export default function SpeciesStrip({
     key: "__other__",
     label: "Other",
     color: OTHER_SPECIES_COLOR,
-    dotColor: OTHER_SPECIES_COLOR,
     isActive: anyOtherVisible,
     onToggle: () => onToggleGroup(OTHER_SPECIES, anyOtherVisible),
     ariaLabel: anyOtherVisible
@@ -83,14 +80,6 @@ export default function SpeciesStrip({
           aria-pressed={p.isActive}
           aria-label={p.ariaLabel}
         >
-          <span
-            className="species-pill-dot"
-            style={{
-              backgroundColor: p.dotColor,
-              visibility: p.isActive ? "hidden" : "visible",
-            }}
-            aria-hidden="true"
-          />
           {p.label}
         </button>
       ))}
