@@ -23,15 +23,24 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/whale-icon-192.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
 
-    <!-- Open Graph -->
+    <!-- Open Graph. Absolute URLs (FB/Slack/LinkedIn fetchers don't
+         resolve relative paths). Width/height let Facebook skip the
+         pre-flight image probe and render the unfurl immediately. -->
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Bay Whale Strandings" />
     <meta
       property="og:description"
       content="An interactive map of whale strandings across the San Francisco Bay Area"
     />
-    <meta property="og:image" content="/og-image.png" />
-    <meta property="og:url" content="https://baywhales.org" />
+    <meta property="og:image" content="https://www.baywhales.org/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Bay Whale Strandings — interactive map of whale strandings in the San Francisco Bay Area, by Izgi Uygur"
+    />
+    <meta property="og:url" content="https://www.baywhales.org/" />
+    <meta property="og:site_name" content="Bay Whale Strandings" />
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
@@ -40,7 +49,11 @@
       name="twitter:description"
       content="An interactive map of whale strandings across the San Francisco Bay Area"
     />
-    <meta name="twitter:image" content="/og-image.png" />
+    <meta name="twitter:image" content="https://www.baywhales.org/og-image.png" />
+    <meta
+      name="twitter:image:alt"
+      content="Bay Whale Strandings — interactive map of whale strandings in the San Francisco Bay Area, by Izgi Uygur"
+    />
 
     <link
       rel="stylesheet"
