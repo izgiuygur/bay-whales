@@ -191,22 +191,11 @@ export default function App() {
     setFilters(emptyFilters());
   }, []);
 
-  // Bulk-toggle a group of species in filters.species.
-  // When `makeHidden` is true, adds every species in `group` to the hidden
-  // set. When false, removes every species in `group` from the set.
-  const handleSpeciesGroupToggle = useCallback(
-    (group: string[], makeHidden: boolean) => {
-      setFilters((prev) => {
-        const set = new Set(prev.species);
-        for (const s of group) {
-          if (makeHidden) set.add(s);
-          else set.delete(s);
-        }
-        return { ...prev, species: set };
-      });
-    },
-    []
-  );
+  // Replace filters.species wholesale. Used by the species top-pill
+  // quick views and by the drawer's "select only this species" rows.
+  const handleSetHiddenSpecies = useCallback((next: Set<string>) => {
+    setFilters((prev) => ({ ...prev, species: next }));
+  }, []);
 
   // Snapshot of everything the share URL represents RIGHT NOW.
   // The Share button calls this at click time; the URL is not
@@ -288,7 +277,7 @@ export default function App() {
           onFilterToggle={handleFilterToggle}
           onFilterClear={handleFilterClear}
           onFilterClearAll={handleFilterClearAll}
-          onToggleSpeciesGroup={handleSpeciesGroupToggle}
+          onSetHiddenSpecies={handleSetHiddenSpecies}
           showBathymetry={showBathymetry}
           onToggleBathymetry={() => setShowBathymetry((v) => !v)}
           showShippingLanes={showShippingLanes}
@@ -321,6 +310,7 @@ export default function App() {
           onToggle={handleFilterToggle}
           onClear={handleFilterClear}
           onClearAll={handleFilterClearAll}
+          onSetHiddenSpecies={handleSetHiddenSpecies}
           showBathymetry={showBathymetry}
           onToggleBathymetry={() => setShowBathymetry((v) => !v)}
           showShippingLanes={showShippingLanes}
@@ -344,9 +334,7 @@ export default function App() {
         />
         <SpeciesFilter
           hidden={filters.species}
-          onToggleSpecies={(species) => handleFilterToggle("species", species)}
-          onToggleGroup={handleSpeciesGroupToggle}
-          onReset={() => handleFilterClear("species")}
+          onSetHidden={handleSetHiddenSpecies}
         />
         <div className="top-right-cluster">
           <ShareButton

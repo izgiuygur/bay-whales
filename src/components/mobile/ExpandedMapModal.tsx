@@ -6,9 +6,15 @@ import "../../lib/oms-setup";
 import "overlapping-marker-spiderfier-leaflet";
 import type { WhaleRecord } from "../../types/whale";
 import { FEATURED_SPECIES, SPECIES_COLORS, OTHER_SPECIES_COLOR } from "../../types/whale";
-import { SPECIES_COMMON, SPECIES_RARE } from "../../types/filters";
+import {
+  detectQuickView,
+  hiddenForQuickView,
+  type QuickView,
+} from "../../lib/speciesQuickView";
 import { getPinIcon } from "../../lib/whalePin";
 import BottomSheet from "./BottomSheet";
+
+const ALL_SPECIES_COLOR = "#1a1a1a";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const OverlappingMarkerSpiderfier = (window as any).OverlappingMarkerSpiderfier;
@@ -16,18 +22,13 @@ const OverlappingMarkerSpiderfier = (window as any).OverlappingMarkerSpiderfier;
 const BAY_CENTER: [number, number] = [37.7, -122.3];
 const BAY_ZOOM = 9;
 
-const OTHER_SPECIES: string[] = [
-  ...SPECIES_COMMON.filter((s) => !FEATURED_SPECIES.includes(s as never)),
-  ...SPECIES_RARE,
-];
-
 interface Props {
   open: boolean;
   onClose: () => void;
   records: WhaleRecord[];
   hiddenSpecies: Set<string>;
-  onToggleSpecies: (species: string) => void;
-  onToggleGroup: (group: string[], makeHidden: boolean) => void;
+  /** Replace filters.species wholesale (used by the quick-view pills). */
+  onSetHiddenSpecies: (next: Set<string>) => void;
   onPinTap: (record: WhaleRecord) => void;
   // Layers
   showBathymetry: boolean;
@@ -125,60 +126,65 @@ function WaterLayer() {
   );
 }
 
-function PillRow({
-  hidden,
-  onToggleSpecies,
-  onToggleGroup,
-}: {
-  hidden: Set<string>;
-  onToggleSpecies: (species: string) => void;
-  onToggleGroup: (group: string[], makeHidden: boolean) => void;
-}) {
-  interface Pill {
-    key: string;
-    label: string;
-    color: string;
-    isActive: boolean;
-    onToggle: () => void;
-  }
-  const pills: Pill[] = FEATURED_SPECIES.map((species) => {
-    const colors = SPECIES_COLORS[species];
-    const isActive = !hidden.has(species);
-    return {
-      key: species,
-      label: species.replace(" whale", ""),
-      color: colors.active,
-      isActive,
-      onToggle: () => onToggleSpecies(species),
-    };
-  });
-  const anyOtherVisible = OTHER_SPECIES.some((s) => !hidden.has(s));
-  pills.push({
-    key: "__other__",
+interface QuickPill {
+  key: QuickView;
+  label: string;
+  color: string;
+  ariaLabel: string;
+}
+
+const QUICK_PILLS: QuickPill[] = [
+  {
+    key: "all",
+    label: "All",
+    color: ALL_SPECIES_COLOR,
+    ariaLabel: "Show all species",
+  },
+  ...FEATURED_SPECIES.map<QuickPill>((sp) => ({
+    key: sp,
+    // Compact label: drop "whale" so the row fits on phone widths.
+    label: sp.replace(" whale", ""),
+    color: SPECIES_COLORS[sp].active,
+    ariaLabel: `Show only ${sp}`,
+  })),
+  {
+    key: "other",
     label: "Other",
     color: OTHER_SPECIES_COLOR,
-    isActive: anyOtherVisible,
-    onToggle: () => onToggleGroup(OTHER_SPECIES, anyOtherVisible),
-  });
+    ariaLabel: "Show only other species",
+  },
+];
+
+function PillRow({
+  hidden,
+  onSetHidden,
+}: {
+  hidden: Set<string>;
+  onSetHidden: (next: Set<string>) => void;
+}) {
+  const active = detectQuickView(hidden);
   return (
     <div className="m-expanded-pills">
-      {pills.map((p) => (
-        <button
-          key={p.key}
-          type="button"
-          className={`species-pill ${p.isActive ? "active" : ""}`}
-          style={{
-            backgroundColor: p.isActive ? p.color : "#fff",
-            borderColor: p.color,
-            color: p.isActive ? "#fff" : "#333",
-          }}
-          onClick={p.onToggle}
-          aria-pressed={p.isActive}
-          aria-label={p.isActive ? `Hide ${p.label}` : `Show ${p.label}`}
-        >
-          {p.label}
-        </button>
-      ))}
+      {QUICK_PILLS.map((p) => {
+        const isActive = active === p.key;
+        return (
+          <button
+            key={p.key}
+            type="button"
+            className={`species-pill ${isActive ? "active" : ""}`}
+            style={{
+              backgroundColor: isActive ? p.color : "#fff",
+              borderColor: p.color,
+              color: isActive ? "#fff" : "#333",
+            }}
+            onClick={() => onSetHidden(hiddenForQuickView(p.key))}
+            aria-pressed={isActive}
+            aria-label={p.ariaLabel}
+          >
+            {p.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -189,8 +195,7 @@ export default function ExpandedMapModal(props: Props) {
     onClose,
     records,
     hiddenSpecies,
-    onToggleSpecies,
-    onToggleGroup,
+    onSetHiddenSpecies,
     onPinTap,
     showBathymetry,
     onToggleBathymetry,
@@ -249,8 +254,7 @@ export default function ExpandedMapModal(props: Props) {
         </button>
         <PillRow
           hidden={hiddenSpecies}
-          onToggleSpecies={onToggleSpecies}
-          onToggleGroup={onToggleGroup}
+          onSetHidden={onSetHiddenSpecies}
         />
       </div>
 

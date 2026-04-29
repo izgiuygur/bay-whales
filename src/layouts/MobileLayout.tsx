@@ -27,7 +27,7 @@ interface Props {
   onFilterToggle: (key: FilterKey, value: string | number) => void;
   onFilterClear: (key: FilterKey) => void;
   onFilterClearAll: () => void;
-  onToggleSpeciesGroup: (group: string[], makeHidden: boolean) => void;
+  onSetHiddenSpecies: (next: Set<string>) => void;
   showBathymetry: boolean;
   onToggleBathymetry: () => void;
   showShippingLanes: boolean;
@@ -51,7 +51,7 @@ export default function MobileLayout(props: Props) {
     onFilterToggle,
     onFilterClear,
     onFilterClearAll,
-    onToggleSpeciesGroup,
+    onSetHiddenSpecies,
     showBathymetry,
     onToggleBathymetry,
     showShippingLanes,
@@ -85,13 +85,6 @@ export default function MobileLayout(props: Props) {
     listRef.current?.scrollToAndFlash(recordId);
   }, []);
 
-  const handleToggleSpecies = useCallback(
-    (species: string) => {
-      onFilterToggle("species", species);
-    },
-    [onFilterToggle]
-  );
-
   return (
     <div className="m-root">
       <MobileHeader
@@ -114,8 +107,7 @@ export default function MobileLayout(props: Props) {
 
       <SpeciesStrip
         hidden={filters.species}
-        onToggleSpecies={handleToggleSpecies}
-        onToggleGroup={onToggleSpeciesGroup}
+        onSetHidden={onSetHiddenSpecies}
         onOpenFilters={() => setFiltersOpen(true)}
       />
 
@@ -162,6 +154,7 @@ export default function MobileLayout(props: Props) {
         onToggle={onFilterToggle}
         onClear={onFilterClear}
         onClearAll={onFilterClearAll}
+        onSetHiddenSpecies={onSetHiddenSpecies}
         showBathymetry={showBathymetry}
         onToggleBathymetry={onToggleBathymetry}
         showShippingLanes={showShippingLanes}
@@ -180,8 +173,7 @@ export default function MobileLayout(props: Props) {
         onClose={() => setExpandedMapOpen(false)}
         records={records}
         hiddenSpecies={filters.species}
-        onToggleSpecies={handleToggleSpecies}
-        onToggleGroup={onToggleSpeciesGroup}
+        onSetHiddenSpecies={onSetHiddenSpecies}
         onPinTap={(r) => setDetailRecord(r)}
         showBathymetry={showBathymetry}
         onToggleBathymetry={onToggleBathymetry}

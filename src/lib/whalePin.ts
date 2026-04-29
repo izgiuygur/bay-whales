@@ -3,15 +3,22 @@
 // surface renders pins with identical geometry + colors.
 
 import L from "leaflet";
-import { SPECIES_COLORS, type SpeciesKey } from "../types/whale";
+import {
+  SPECIES_COLORS,
+  OTHER_SPECIES_COLOR,
+  type SpeciesKey,
+} from "../types/whale";
 
-export const PIN_FALLBACK_COLOR = "#4a4a4a";
+// Re-exported for any caller that imports the pin fallback by name.
+// Always tracks OTHER_SPECIES_COLOR so the "Other" pill swatch and
+// the fallback pin tone stay in lockstep.
+export const PIN_FALLBACK_COLOR = OTHER_SPECIES_COLOR;
 
 export function getMarkerColor(species: string): string {
   if (species in SPECIES_COLORS) {
     return SPECIES_COLORS[species as SpeciesKey].pin;
   }
-  return PIN_FALLBACK_COLOR;
+  return OTHER_SPECIES_COLOR;
 }
 
 export function speciesSlug(species: string): string {

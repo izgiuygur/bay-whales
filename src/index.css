@@ -710,6 +710,24 @@ body {
   font-style: italic;
 }
 
+/* Default-mode species row: rendered as a button (no checkbox). Strip
+   native button styling so it visually matches the labeled rows. */
+.filter-option--plain {
+  font-family: inherit;
+  background: none;
+  border: 0;
+  text-align: left;
+  width: 100%;
+}
+.filter-option--plain:hover .filter-option-label {
+  color: #111;
+}
+.filter-option--plain:focus-visible {
+  outline: 2px solid #0051BA;
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
 .filter-clear-btn {
   font-family: var(--font);
   font-size: 10px;
@@ -2412,6 +2430,20 @@ body.bws-skipping .whale-pin {
   font-size: 13px;
   color: #333;
   line-height: 1.35;
+}
+
+/* Mobile default-mode species row (no checkbox): rendered as a button. */
+.m-filter-option--plain {
+  font-family: inherit;
+  background: none;
+  border: 0;
+  text-align: left;
+  width: 100%;
+}
+.m-filter-option--plain:focus-visible {
+  outline: 2px solid #0051BA;
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 .m-filter-clear-btn {

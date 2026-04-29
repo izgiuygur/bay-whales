@@ -42,11 +42,10 @@ const MAX_BOUNDS: L.LatLngBoundsExpression = [
   [39.4, -121.3],
 ];
 
-export function getTooltipFg(species: string): string {
-  if (species in SPECIES_COLORS) {
-    return "#333";
-  }
-  return "#ffffff";
+export function getTooltipFg(_species: string): string {
+  // All current species pill backgrounds (including "Other") are pale
+  // tones, so dark foreground reads better than white in every case.
+  return "#333";
 }
 
 export function getTooltipBg(species: string): string {

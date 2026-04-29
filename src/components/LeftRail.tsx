@@ -34,6 +34,8 @@ interface Props {
   onToggle: (key: FilterKey, value: string | number) => void;
   onClear: (key: FilterKey) => void;
   onClearAll: () => void;
+  /** Replace filters.species wholesale (used by species quick-view rows). */
+  onSetHiddenSpecies: (next: Set<string>) => void;
   showBathymetry: boolean;
   onToggleBathymetry: () => void;
   showShippingLanes: boolean;
@@ -113,10 +115,12 @@ function SpeciesFilterSection({
   filters,
   onToggle,
   onClear,
+  onSetHidden,
 }: {
   filters: Filters;
   onToggle: (key: FilterKey, value: string | number) => void;
   onClear: (key: FilterKey) => void;
+  onSetHidden: (next: Set<string>) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [showRare, setShowRare] = useState(false);
@@ -128,14 +132,14 @@ function SpeciesFilterSection({
   // is hidden — matches the convention used by month/county/etc.
   const selectedCount = countSelectedSpecies(hiddenSet);
   const anyHidden = hiddenSet.size > 0;
+  // Default mode (= "All species" quick view active): no checkboxes.
+  // Rows are plain buttons; clicking a row enters multi-select mode by
+  // selecting only that species.
+  const defaultMode = !anyHidden;
 
-  const renderRow = (sp: string) => (
-    <label key={sp} className="filter-option">
-      <input
-        type="checkbox"
-        checked={!hiddenSet.has(sp)}
-        onChange={() => onToggle("species", sp)}
-      />
+  // Plain row label (species name + scientific). Reused in both modes.
+  const renderLabel = (sp: string) => (
+    <>
       <span
         className="filter-option-dot"
         style={{ backgroundColor: getSpeciesDotColor(sp) }}
@@ -150,8 +154,42 @@ function SpeciesFilterSection({
           </span>
         )}
       </span>
-    </label>
+    </>
   );
+
+  const renderRow = (sp: string) => {
+    if (defaultMode) {
+      // No checkbox — clicking enters multi-select with only `sp` selected.
+      return (
+        <button
+          key={sp}
+          type="button"
+          className="filter-option filter-option--plain"
+          onClick={() => {
+            // Hide everything except this one.
+            const next = new Set<string>();
+            for (const other of [...SPECIES_COMMON, ...SPECIES_RARE]) {
+              if (other !== sp) next.add(other);
+            }
+            onSetHidden(next);
+          }}
+          aria-label={`Show only ${sp}`}
+        >
+          {renderLabel(sp)}
+        </button>
+      );
+    }
+    return (
+      <label key={sp} className="filter-option">
+        <input
+          type="checkbox"
+          checked={!hiddenSet.has(sp)}
+          onChange={() => onToggle("species", sp)}
+        />
+        {renderLabel(sp)}
+      </label>
+    );
+  };
 
   return (
     <div className="filter-section">
@@ -214,6 +252,7 @@ export default function LeftRail({
   onToggle,
   onClear,
   onClearAll,
+  onSetHiddenSpecies,
   showBathymetry,
   onToggleBathymetry,
   showShippingLanes,
@@ -353,6 +392,7 @@ export default function LeftRail({
                 filters={filters}
                 onToggle={onToggle}
                 onClear={onClear}
+                onSetHidden={onSetHiddenSpecies}
               />
               <FilterSection
                 title="Month"

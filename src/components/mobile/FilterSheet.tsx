@@ -23,6 +23,8 @@ interface Props {
   onToggle: (key: FilterKey, value: string | number) => void;
   onClear: (key: FilterKey) => void;
   onClearAll: () => void;
+  /** Replace filters.species wholesale (used by drawer "select only" rows). */
+  onSetHiddenSpecies: (next: Set<string>) => void;
   showBathymetry: boolean;
   onToggleBathymetry: () => void;
   showShippingLanes: boolean;
@@ -105,24 +107,24 @@ function SpeciesSection({
   filters,
   onToggle,
   onClear,
+  onSetHidden,
 }: {
   filters: Filters;
   onToggle: (key: FilterKey, value: string | number) => void;
   onClear: (key: FilterKey) => void;
+  onSetHidden: (next: Set<string>) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [showRare, setShowRare] = useState(false);
   const hidden = filters.species;
   const anyHidden = hidden.size > 0;
   const selected = countSelectedSpecies(hidden);
+  // Default mode (= "All species" pill active) — render rows without
+  // checkboxes; clicking a row enters multi-select mode.
+  const defaultMode = !anyHidden;
 
-  const renderRow = (sp: string) => (
-    <label key={sp} className="m-filter-option">
-      <input
-        type="checkbox"
-        checked={!hidden.has(sp)}
-        onChange={() => onToggle("species", sp)}
-      />
+  const renderLabel = (sp: string) => (
+    <>
       <span
         className="filter-option-dot"
         style={{ backgroundColor: getSpeciesDotColor(sp) }}
@@ -137,8 +139,40 @@ function SpeciesSection({
           </span>
         )}
       </span>
-    </label>
+    </>
   );
+
+  const renderRow = (sp: string) => {
+    if (defaultMode) {
+      return (
+        <button
+          key={sp}
+          type="button"
+          className="m-filter-option m-filter-option--plain"
+          onClick={() => {
+            const next = new Set<string>();
+            for (const other of [...SPECIES_COMMON, ...SPECIES_RARE]) {
+              if (other !== sp) next.add(other);
+            }
+            onSetHidden(next);
+          }}
+          aria-label={`Show only ${sp}`}
+        >
+          {renderLabel(sp)}
+        </button>
+      );
+    }
+    return (
+      <label key={sp} className="m-filter-option">
+        <input
+          type="checkbox"
+          checked={!hidden.has(sp)}
+          onChange={() => onToggle("species", sp)}
+        />
+        {renderLabel(sp)}
+      </label>
+    );
+  };
 
   return (
     <div className="m-filter-section">
@@ -203,6 +237,7 @@ export default function FilterSheet(props: Props) {
     onToggle,
     onClear,
     onClearAll,
+    onSetHiddenSpecies,
     showBathymetry,
     onToggleBathymetry,
     showShippingLanes,
@@ -244,7 +279,12 @@ export default function FilterSheet(props: Props) {
         </div>
       }
     >
-      <SpeciesSection filters={filters} onToggle={onToggle} onClear={onClear} />
+      <SpeciesSection
+        filters={filters}
+        onToggle={onToggle}
+        onClear={onClear}
+        onSetHidden={onSetHiddenSpecies}
+      />
       <Section
         title="Month"
         filterKey="month"

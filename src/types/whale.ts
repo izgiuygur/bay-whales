@@ -30,10 +30,22 @@ export interface WhaleRecord {
 
 export type SpeciesKey = "Gray whale" | "Humpback whale" | "Fin whale";
 
+// TEST PALETTE — keeping the previous values commented so we can
+// revert easily if the new tones don't read well on the map.
+// Previous palette:
+//   "Gray whale":      { passive: "#DBCDF8", active: "#8D72C5", pin: "#A48DD3" },
+//   "Humpback whale":  { passive: "#C6DBF0", active: "#4FA7FF", pin: "#80B4E8" },
+//   "Fin whale":       { passive: "#D8E688", active: "#BAD41F", pin: "#B5CC2E" },
+//   OTHER_SPECIES_COLOR = "#4a4a4a";
+//
+// New palette uses a single color per species across all three shades
+// (passive/active/pin), so dots, pills, drawer swatches, and pin
+// strokes all read as the same hue. Hierarchy comes from
+// border-vs-fill, not from tone.
 export const SPECIES_COLORS: Record<SpeciesKey, { passive: string; active: string; pin: string }> = {
-  "Gray whale": { passive: "#DBCDF8", active: "#8D72C5", pin: "#A48DD3" },
-  "Humpback whale": { passive: "#C6DBF0", active: "#4FA7FF", pin: "#80B4E8" },
-  "Fin whale": { passive: "#D8E688", active: "#BAD41F", pin: "#B5CC2E" },
+  "Gray whale":     { passive: "#9D80C2", active: "#9D80C2", pin: "#9D80C2" },
+  "Humpback whale": { passive: "#4F9DEE", active: "#4F9DEE", pin: "#4F9DEE" },
+  "Fin whale":      { passive: "#A8C840", active: "#A8C840", pin: "#A8C840" },
 };
 
 export const FEATURED_SPECIES: SpeciesKey[] = [
@@ -44,7 +56,7 @@ export const FEATURED_SPECIES: SpeciesKey[] = [
 
 // Color used for the "Other" pill and for every non-featured species
 // dot in the drawer. Matches the fallback pin color on the map.
-export const OTHER_SPECIES_COLOR = "#4a4a4a";
+export const OTHER_SPECIES_COLOR = "#5D7C2D";
 
 // Drawer-style dot color (legend swatch beside species names on
 // white). Featured species use their `pin` (medium) shade.

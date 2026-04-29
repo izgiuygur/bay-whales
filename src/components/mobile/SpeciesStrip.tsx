@@ -3,62 +3,59 @@ import {
   SPECIES_COLORS,
   OTHER_SPECIES_COLOR,
 } from "../../types/whale";
-import { SPECIES_COMMON, SPECIES_RARE } from "../../types/filters";
+import {
+  detectQuickView,
+  hiddenForQuickView,
+  type QuickView,
+} from "../../lib/speciesQuickView";
+
+const ALL_SPECIES_COLOR = "#1a1a1a";
 
 interface Props {
   hidden: Set<string>;
-  onToggleSpecies: (species: string) => void;
-  onToggleGroup: (group: string[], makeHidden: boolean) => void;
+  /** Replace filters.species wholesale. */
+  onSetHidden: (next: Set<string>) => void;
   onOpenFilters: () => void;
 }
 
-const OTHER_SPECIES: string[] = [
-  ...SPECIES_COMMON.filter((s) => !FEATURED_SPECIES.includes(s as never)),
-  ...SPECIES_RARE,
-];
+interface PillSpec {
+  key: QuickView;
+  label: string;
+  color: string;
+  ariaLabel: string;
+}
 
-// Mobile version of the desktop SpeciesFilter pill row. Uses the same
-// geometry and color rules; only the container layout differs.
-// Tapping the "Other" pill opens the FilterSheet so the user can
-// expand individual long-tail species — matching the spec.
-export default function SpeciesStrip({
-  hidden,
-  onToggleSpecies,
-  onToggleGroup,
-  onOpenFilters,
-}: Props) {
-  interface Pill {
-    key: string;
-    label: string;
-    color: string;
-    isActive: boolean;
-    onToggle: () => void;
-    ariaLabel: string;
-  }
-  const pills: Pill[] = FEATURED_SPECIES.map((species) => {
-    const colors = SPECIES_COLORS[species];
-    const isActive = !hidden.has(species);
-    return {
-      key: species,
-      label: species,
-      color: colors.active,
-      isActive,
-      onToggle: () => onToggleSpecies(species),
-      ariaLabel: isActive ? `Hide ${species}` : `Show ${species}`,
-    };
-  });
-
-  const anyOtherVisible = OTHER_SPECIES.some((s) => !hidden.has(s));
-  pills.push({
-    key: "__other__",
+const PILLS: PillSpec[] = [
+  {
+    key: "all",
+    label: "All species",
+    color: ALL_SPECIES_COLOR,
+    ariaLabel: "Show all species",
+  },
+  ...FEATURED_SPECIES.map<PillSpec>((sp) => ({
+    key: sp,
+    label: sp,
+    color: SPECIES_COLORS[sp].active,
+    ariaLabel: `Show only ${sp}`,
+  })),
+  {
+    key: "other",
     label: "Other",
     color: OTHER_SPECIES_COLOR,
-    isActive: anyOtherVisible,
-    onToggle: () => onToggleGroup(OTHER_SPECIES, anyOtherVisible),
-    ariaLabel: anyOtherVisible
-      ? "Hide all other species"
-      : "Show all other species",
-  });
+    ariaLabel: "Show only other species",
+  },
+];
+
+// Mobile version of the desktop SpeciesFilter pill row.
+// Same quick-view radio model: clicking a pill replaces the hidden
+// set with that view. The trailing "All species…" link opens the
+// FilterSheet for advanced multi-select.
+export default function SpeciesStrip({
+  hidden,
+  onSetHidden,
+  onOpenFilters,
+}: Props) {
+  const active = detectQuickView(hidden);
 
   return (
     <div
@@ -66,23 +63,26 @@ export default function SpeciesStrip({
       role="group"
       aria-label="Filter by species"
     >
-      {pills.map((p) => (
-        <button
-          key={p.key}
-          type="button"
-          className={`species-pill ${p.isActive ? "active" : ""}`}
-          style={{
-            backgroundColor: p.isActive ? p.color : "#fff",
-            borderColor: p.color,
-            color: p.isActive ? "#fff" : "#333",
-          }}
-          onClick={p.onToggle}
-          aria-pressed={p.isActive}
-          aria-label={p.ariaLabel}
-        >
-          {p.label}
-        </button>
-      ))}
+      {PILLS.map((p) => {
+        const isActive = active === p.key;
+        return (
+          <button
+            key={p.key}
+            type="button"
+            className={`species-pill ${isActive ? "active" : ""}`}
+            style={{
+              backgroundColor: isActive ? p.color : "#fff",
+              borderColor: p.color,
+              color: isActive ? "#fff" : "#333",
+            }}
+            onClick={() => onSetHidden(hiddenForQuickView(p.key))}
+            aria-pressed={isActive}
+            aria-label={p.ariaLabel}
+          >
+            {p.label}
+          </button>
+        );
+      })}
       <button
         type="button"
         className="m-species-more"
