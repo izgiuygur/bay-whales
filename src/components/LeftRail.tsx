@@ -36,6 +36,11 @@ interface Props {
   onClearAll: () => void;
   /** Replace filters.species wholesale (used by species quick-view rows). */
   onSetHiddenSpecies: (next: Set<string>) => void;
+  /** When a story is active, filter controls inside the drawer are
+   *  visually disabled and clicks blocked, but the drawer can still
+   *  be opened/closed and static content (about, layers, credit)
+   *  stays readable. */
+  storyActive?: boolean;
   showBathymetry: boolean;
   onToggleBathymetry: () => void;
   showShippingLanes: boolean;
@@ -253,6 +258,7 @@ export default function LeftRail({
   onClear,
   onClearAll,
   onSetHiddenSpecies,
+  storyActive,
   showBathymetry,
   onToggleBathymetry,
   showShippingLanes,
@@ -380,6 +386,9 @@ export default function LeftRail({
                   className="rail-clear-all active"
                   onClick={onClearAll}
                   aria-label={`Clear all filters (${totalActive} active)`}
+                  title={
+                    storyActive ? "Close story to change filters" : undefined
+                  }
                 >
                   Clear all
                   <span className="rail-clear-all-count">{totalActive}</span>
@@ -387,7 +396,12 @@ export default function LeftRail({
               )}
             </div>
 
-            <div className="filter-group">
+            <div
+              className="filter-group"
+              title={
+                storyActive ? "Close story to change filters" : undefined
+              }
+            >
               <SpeciesFilterSection
                 filters={filters}
                 onToggle={onToggle}

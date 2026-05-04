@@ -43,6 +43,48 @@ function readInitialStorySlug(): string | null {
   return getPatternBySlug(slug) ? slug : null;
 }
 
+// Smooth map fly-to that's robust to two failure modes we hit when
+// activating / closing stories quickly:
+//   1. A still-running flyTo (from the previous activate/close) gets
+//      mid-animation interrupted by the new one, producing a visible
+//      "slow move then jump" — the old animation's coast phase, then
+//      the new one's start. `map.stop()` kills any in-flight animation
+//      cleanly.
+//   2. The flyTo fires before React has committed the re-render, so a
+//      layout pass mid-animation makes the camera lurch. `requestAnima
+//      tionFrame` defers the call to AFTER the commit so the camera
+//      starts from a stable baseline.
+function flyToSafely(
+  map: L.Map,
+  center: [number, number],
+  zoom: number,
+  duration: number
+) {
+  // Why setView({animate, duration}) instead of flyTo:
+  //
+  // Leaflet's flyTo computes a "pan-zoom curve" that for medium-
+  // distance moves zooms OUT first (to a wide view), pans across,
+  // then zooms IN. Visually this reads as "slow move, then jump",
+  // which is what users were seeing on every story activation.
+  //
+  // setView with `animate: true, duration` does a simpler
+  // simultaneous pan+zoom. No zoom-out hop; one continuous easing.
+  //
+  // map.stop() and the rAF wrapping are still needed: stop()
+  // cancels any in-flight animation cleanly so back-to-back story
+  // switches don't overlap, and rAF defers the call to AFTER React
+  // commits the matching state update so the camera doesn't lurch
+  // mid-animation from a marker-layer rebuild.
+  requestAnimationFrame(() => {
+    map.stop();
+    map.setView(center, zoom, {
+      animate: true,
+      duration,
+      easeLinearity: 0.4,
+    });
+  });
+}
+
 // Imperatively update the ?story= URL param without triggering a
 // reload. Mirrors how the Share button updates the URL elsewhere.
 function syncStoryUrl(slug: string | null) {
@@ -289,112 +331,122 @@ export default function App() {
   // snapshot. Switching directly between stories from one to another
   // does NOT take a fresh snapshot — the saved state always reflects
   // pre-story explore mode.
+  // Tracks whether the one-shot "apply initial ?story= URL param"
+  // effect has already run. Set to true on the effect's first
+  // successful pass — and ALSO whenever the user clicks any pill,
+  // so the effect can't double-fly when records load mid-click.
+  const didApplyInitialStoryRef = useRef(false);
+
+  // Side effects (flyTo, setFilters, URL writes) live OUTSIDE any
+  // setState updater function. Putting them inside an updater means
+  // they can be invoked more than once (StrictMode dev double-render,
+  // and any future render-coalescing) — which manifested as the map
+  // doing one slow flyTo, then jerking again on a second flyTo with
+  // identical args. Doing the side effects synchronously next to the
+  // state update guarantees they run exactly once per call.
+  const closeStory = useCallback(() => {
+    if (activeStorySlug === null) return;
+    const saved = savedStateRef.current;
+    if (saved) {
+      setFilters(saved.filters);
+      setSelectedRange(saved.selectedRange);
+      if (saved.view && mapRef.current) {
+        flyToSafely(
+          mapRef.current,
+          [saved.view.lat, saved.view.lng],
+          saved.view.zoom,
+          0.7
+        );
+      }
+    } else {
+      // No snapshot — user landed on this page with ?story=... so
+      // there's no "before" to restore to. Reset to default explore.
+      setFilters(emptyFilters());
+      setSelectedRange(null);
+      if (mapRef.current) {
+        flyToSafely(mapRef.current, [37.7, -122.3], 9, 0.7);
+      }
+    }
+    savedStateRef.current = null;
+    syncStoryUrl(null);
+    setActiveStorySlug(null);
+  }, [activeStorySlug]);
+
   const activateStory = useCallback(
     (slug: string) => {
       const story = getPatternBySlug(slug);
       if (!story) return;
 
+      // Any subsequent click-driven activation supersedes the initial
+      // URL apply effect — without this guard, that effect would fire
+      // its own delayed flyTo a tick later, producing a "double-jump".
+      didApplyInitialStoryRef.current = true;
+
       // Toggle off if user clicks the active pill again.
-      // (We read activeStorySlug fresh inside the callback — this
-      // closure value is stale after the first call.)
-      // Actually: pass an updater to make this race-safe.
-      setActiveStorySlug((prev) => {
-        if (prev === slug) {
-          // Closing — restore.
-          const saved = savedStateRef.current;
-          if (saved) {
-            setFilters(saved.filters);
-            setSelectedRange(saved.selectedRange);
-            if (saved.view && mapRef.current) {
-              mapRef.current.flyTo(
-                [saved.view.lat, saved.view.lng],
-                saved.view.zoom,
-                { duration: 0.7 }
-              );
-            }
-          }
-          savedStateRef.current = null;
-          syncStoryUrl(null);
-          return null;
-        }
-
-        // Activating — snapshot only if we're entering story mode
-        // from explore (not when swapping between stories).
-        if (prev === null && mapRef.current) {
-          const c = mapRef.current.getCenter();
-          savedStateRef.current = {
-            filters,
-            selectedRange,
-            view: { lat: c.lat, lng: c.lng, zoom: mapRef.current.getZoom() },
-          };
-        }
-
-        const { filters: nextFilters, yearRange } = applyStoryFiltersTo(
-          story,
-          emptyFilters,
-          ALL_SPECIES_LIST
-        );
-        setFilters(nextFilters);
-        setSelectedRange(
-          yearRange ? { start: yearRange[0], end: yearRange[1] } : null
-        );
-        if (mapRef.current) {
-          mapRef.current.flyTo(story.mapView.center, story.mapView.zoom, {
-            duration: 0.7,
-          });
-        }
-        syncStoryUrl(slug);
-        // First story activation also dismisses the nudge for good.
-        if (nudgePatterns) dismissPatternsNudge();
-        return slug;
-      });
-    },
-    [filters, selectedRange, nudgePatterns, dismissPatternsNudge]
-  );
-
-  const closeStory = useCallback(() => {
-    setActiveStorySlug((prev) => {
-      if (prev === null) return null;
-      const saved = savedStateRef.current;
-      if (saved) {
-        setFilters(saved.filters);
-        setSelectedRange(saved.selectedRange);
-        if (saved.view && mapRef.current) {
-          mapRef.current.flyTo(
-            [saved.view.lat, saved.view.lng],
-            saved.view.zoom,
-            { duration: 0.7 }
-          );
-        }
-      } else {
-        // No snapshot — user landed on this page with ?story=... so
-        // there's no "before" to restore to. Reset to default explore.
-        setFilters(emptyFilters());
-        setSelectedRange(null);
-        if (mapRef.current) {
-          mapRef.current.flyTo([37.7, -122.3], 9, { duration: 0.7 });
-        }
+      if (activeStorySlug === slug) {
+        closeStory();
+        return;
       }
-      savedStateRef.current = null;
-      syncStoryUrl(null);
-      return null;
-    });
-  }, []);
+
+      // Snapshot pre-story state ONLY when entering from explore mode
+      // (not when swapping between stories — savedStateRef should
+      // always reflect the user's pre-story configuration).
+      if (activeStorySlug === null && mapRef.current) {
+        const c = mapRef.current.getCenter();
+        savedStateRef.current = {
+          filters,
+          selectedRange,
+          view: { lat: c.lat, lng: c.lng, zoom: mapRef.current.getZoom() },
+        };
+      }
+
+      // Apply the story's filter / view preset.
+      const { filters: nextFilters, yearRange } = applyStoryFiltersTo(
+        story,
+        emptyFilters,
+        ALL_SPECIES_LIST
+      );
+      setFilters(nextFilters);
+      setSelectedRange(
+        yearRange ? { start: yearRange[0], end: yearRange[1] } : null
+      );
+      if (mapRef.current) {
+        flyToSafely(
+          mapRef.current,
+          story.mapView.center,
+          story.mapView.zoom,
+          0.7
+        );
+      }
+      syncStoryUrl(slug);
+      if (nudgePatterns) dismissPatternsNudge();
+      setActiveStorySlug(slug);
+    },
+    [
+      activeStorySlug,
+      closeStory,
+      filters,
+      selectedRange,
+      nudgePatterns,
+      dismissPatternsNudge,
+    ]
+  );
 
   // Apply an initial ?story= once: when the page mounts with a slug
   // in the URL, we want the same activation flow (filters, fly-to)
-  // to run. We do it after records load so map + filters are mounted.
-  const didApplyInitialStoryRef = useRef(false);
+  // to run. The trick is the map instance is created async by
+  // react-leaflet — so when records.length flips from 0 to N this
+  // effect can fire BEFORE MapRefBridge has populated mapRef.current.
+  // Previously we bailed on !mapRef.current, which marked the effect
+  // "done" via the guard ref and meant filters never got applied.
+  // Now we apply filters as soon as records exist (no map needed
+  // for that), and poll for the map before doing the flyTo.
   useEffect(() => {
     if (didApplyInitialStoryRef.current) return;
     if (!activeStorySlug) return;
     if (records.length === 0) return;
-    if (!mapRef.current) return;
     didApplyInitialStoryRef.current = true;
 
-    // Re-activate via the same path so filters/view get applied
-    // (the slug is already set in state, but the side effects haven't
-    // run). We bypass the toggle-off branch by clearing first.
     const story = getPatternBySlug(activeStorySlug);
     if (!story) return;
     const { filters: nextFilters, yearRange } = applyStoryFiltersTo(
@@ -406,14 +458,32 @@ export default function App() {
     setSelectedRange(
       yearRange ? { start: yearRange[0], end: yearRange[1] } : null
     );
-    // Defer the flyTo a tick so the map finishes its initial layout.
-    const t = window.setTimeout(() => {
-      if (!mapRef.current) return;
-      mapRef.current.flyTo(story.mapView.center, story.mapView.zoom, {
-        duration: 0.6,
-      });
-    }, 200);
-    return () => window.clearTimeout(t);
+
+    // Map readiness: the Leaflet instance might not exist yet on the
+    // tick records first load. Poll until it's ready, then flyTo.
+    // Caps after a second so we don't loop forever if something
+    // genuinely went wrong with map init.
+    let cancelled = false;
+    const start = Date.now();
+    const tryFlyTo = () => {
+      if (cancelled) return;
+      if (mapRef.current) {
+        flyToSafely(
+          mapRef.current,
+          story.mapView.center,
+          story.mapView.zoom,
+          0.6
+        );
+        return;
+      }
+      if (Date.now() - start > 1000) return;
+      window.setTimeout(tryFlyTo, 60);
+    };
+    const initialDelay = window.setTimeout(tryFlyTo, 200);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(initialDelay);
+    };
   }, [activeStorySlug, records.length]);
 
   // Replace filters.species wholesale. Used by the species top-pill
@@ -461,6 +531,28 @@ export default function App() {
   // Hard-skip on (prefers-reduced-motion) or mobile: never render hero.
   const heroEligible = !isMobile && !prefersReducedMotion;
   const showHero = heroPlaying && heroEligible;
+
+  // Click-the-title "go home" reset. Closes the active story (if any),
+  // clears every filter, restores the default map view, and dismisses
+  // a live intro animation. Doubles as the canonical "I'm lost, take
+  // me back" gesture.
+  const handleHomeClick = useCallback(() => {
+    // Close story first so the saved-snapshot machinery doesn't
+    // overwrite the cleared filters with whatever was saved.
+    if (activeStorySlug) closeStory();
+    setFilters(emptyFilters());
+    setSelectedRange(null);
+    if (mapRef.current) {
+      flyToSafely(mapRef.current, [37.7, -122.3], 9, 0.6);
+    }
+    // Skip the intro animation if it's currently playing.
+    setHeroPlaying(false);
+    try {
+      window.sessionStorage.setItem(HERO_SESSION_KEY, "1");
+    } catch {
+      // best-effort
+    }
+  }, [activeStorySlug, closeStory]);
 
   const handleHeroComplete = useCallback(() => {
     try {
@@ -534,7 +626,7 @@ export default function App() {
           onComplete={handleHeroComplete}
         />
       )}
-      <Header />
+      <Header onHomeClick={handleHomeClick} />
       <div className="main-area">
         <LeftRail
           filters={filters}
@@ -542,6 +634,7 @@ export default function App() {
           onClear={handleFilterClear}
           onClearAll={handleFilterClearAll}
           onSetHiddenSpecies={handleSetHiddenSpecies}
+          storyActive={!!activeStory}
           showBathymetry={showBathymetry}
           onToggleBathymetry={() => setShowBathymetry((v) => !v)}
           showShippingLanes={showShippingLanes}

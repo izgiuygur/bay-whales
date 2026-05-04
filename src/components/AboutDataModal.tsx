@@ -114,7 +114,25 @@ export default function AboutDataModal({ open, onClose }: Props) {
           <p className="about-modal-p">
             Records come from the West Coast Region Marine Mammal Stranding
             Network (WCR-MMSN), coordinated by NOAA Fisheries. Data accessed
-            April 7, 2026.
+            April 7, 2026. 2026 recorded strandings are not included in the
+            dataset.
+          </p>
+
+          <h3 className="about-modal-h3">How current is this data?</h3>
+          <p className="about-modal-p">
+            WCR-MMSN records typically lag real-time stranding reports by
+            several months to a year. The most recent records included are
+            from 2025. For up-to-date 2026 stranding counts, see The Marine
+            Mammal Center's whale stranding press materials at{" "}
+            <a
+              href="https://www.marinemammalcenter.org/news/press-room"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="about-modal-link"
+            >
+              marinemammalcenter.org
+            </a>
+            .
           </p>
 
           <h3 className="about-modal-h3">Contributing organizations</h3>

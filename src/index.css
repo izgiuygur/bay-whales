@@ -112,12 +112,30 @@ body {
 }
 
 .header-title {
+  /* Was an <h1> with default browser styles; now rendered as a button
+     so reset whatever native button chrome we'd inherit. */
+  background: none;
+  border: 0;
+  padding: 0;
+  font-family: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
   font-size: 18px;
   font-weight: 600;
   letter-spacing: 1.5px;
   text-transform: uppercase;
   margin: 0;
   line-height: 1.15;
+  transition: color 160ms ease-out;
+}
+.header-title:hover {
+  color: var(--story-blue, #0051BA);
+}
+.header-title:focus-visible {
+  outline: 2px solid var(--story-blue, #0051BA);
+  outline-offset: 3px;
+  border-radius: 2px;
 }
 
 .header-subtitle {
@@ -947,8 +965,13 @@ body {
 
 /* "PATTERNS" kicker — small, brand-blue, all-caps eyebrow that anchors
    the strip and makes the section feel like a curated module rather
-   than a row of orphan buttons. */
+   than a row of orphan buttons. Doubles as a "scroll to start"
+   button when no story is active; goes inert during story mode. */
 .patterns-rail-kicker {
+  /* Reset native button chrome — this is rendered as a <button>. */
+  background: none;
+  border: 0;
+  padding: 0;
   font-family: var(--font);
   font-size: 10px;
   font-weight: 700;
@@ -957,6 +980,20 @@ body {
   color: var(--story-blue);
   white-space: nowrap;
   flex-shrink: 0;
+  cursor: pointer;
+  transition: color 160ms ease-out, opacity 160ms ease-out;
+}
+.patterns-rail-kicker:hover:not(:disabled) {
+  color: var(--story-blue-deep);
+}
+.patterns-rail-kicker:focus-visible {
+  outline: 2px solid var(--story-blue);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+.patterns-rail-kicker:disabled {
+  cursor: default;
+  opacity: 0.7;
 }
 .patterns-rail--mobile .patterns-rail-kicker {
   padding: 0 14px;
@@ -1229,7 +1266,9 @@ body {
    The values that the story applied stay visible (so the user can see
    what the story is "showing"), but they aren't editable.
    ===================================================================== */
-.app--story-mode .left-rail-wrapper,
+/* Filter pills, year strip, and the mobile filters button: fully
+   locked while a story is active. Drawer is intentionally NOT in
+   this list — see the next block. */
 .app--story-mode .species-filter,
 .app--story-mode .timeline,
 .m-root--story-mode .m-species-strip,
@@ -1238,13 +1277,40 @@ body {
   opacity: 0.55;
   pointer-events: none;
 }
-.app--story-mode .left-rail-wrapper *,
 .app--story-mode .species-filter *,
 .app--story-mode .timeline *,
 .m-root--story-mode .m-species-strip *,
 .m-root--story-mode .m-year-strip *,
 .m-root--story-mode .m-header-filter-btn * {
   cursor: not-allowed !important;
+}
+
+/* Drawer in story mode: open/close still works (rail-collapsed and
+   rail-close stay interactive), static content (about, layers,
+   attribution) stays readable, and FILTER controls are locked with
+   a "Close story to change filters" tooltip. We use a transparent
+   ::after overlay so hover lands on the wrapper (which carries the
+   title attribute), but clicks can't reach the inner buttons. */
+.app--story-mode .filter-group,
+.app--story-mode .rail-clear-all {
+  position: relative;
+  cursor: not-allowed;
+}
+.app--story-mode .filter-group {
+  opacity: 0.6;
+}
+.app--story-mode .rail-clear-all {
+  opacity: 0.5;
+}
+.app--story-mode .filter-group::after,
+.app--story-mode .rail-clear-all::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  cursor: not-allowed;
+  /* Background transparent — purely a click-blocker. */
+  background: transparent;
 }
 
 /* Mobile mini-map "Patterns ↓" hint — bottom-edge fade signaling

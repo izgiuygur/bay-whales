@@ -283,14 +283,14 @@ export const PATTERNS: PatternEntry[] = [
     clipPins: SF_BAY_POLYGON,
   },
   {
-    slug: "vessel-strike-corridor",
+    slug: "industrial-corridor",
     type: "pattern",
     icon: "ship",
     headline: "An industrial corridor",
     subhead:
       "Refinery docks and shipping lanes from Carquinez to Oakland show repeated waterfront strandings.",
     caption:
-      "Strandings repeatedly turn up at the same handful of industrial waterfront sites — Phillips 66 and Chevron refinery docks in San Pablo Bay, and Port of Oakland berths. Of the 11 strandings recorded at these sites since 2005, four are confirmed vessel strikes — most famously the 2010 fin whale pinned to the bow of the cargo ship Northern Vitality at Oakland berth 57. The remaining seven have no confirmed cause but were physically wedged into pier pilings, dock undersides, or against ship hulls. The geographic clustering is consistent with vessel strikes and infrastructure interactions being a structural risk, even where individual cases go undocumented. Even at industrial waterfront sites where vessel strike is most plausible, only about a third of cases are confirmed.",
+      "Strandings repeatedly turn up at the same handful of industrial waterfront sites — Phillips 66 and Chevron refinery docks in San Pablo Bay, and Port of Oakland berths. Of the 11 strandings recorded at these sites since 2005, four are confirmed vessel strikes, and a fifth (a gray whale wedged between a ship's hull and Berth 20 pilings) shows clear ship contact even though the database flag was left unset. The remaining six have no confirmed cause but were physically wedged into pier pilings, dock undersides, or against ship hulls. The geographic clustering is consistent with vessel strikes and infrastructure interactions being a structural risk, even where individual cases go undocumented. Even at industrial waterfront sites where vessel strike is most plausible, only about half show explicit vessel-strike evidence — most go unconfirmed.",
     link: {
       label: "NOAA: Reducing vessel strikes",
       url: "https://www.fisheries.noaa.gov/national/endangered-species-conservation/reducing-vessel-strikes-large-whales",

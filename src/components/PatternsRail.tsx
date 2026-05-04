@@ -203,9 +203,23 @@ export default function PatternsRail({
       onMouseEnter={handleInteract}
       onTouchStart={handleInteract}
     >
-      <div className="patterns-rail-kicker" aria-hidden="true">
+      {/* Kicker doubles as a "scroll to start" affordance when no
+          story is active. Disabled (purely decorative) while a story
+          is active — the carousel is locked in story mode and the
+          active pill is the focal point. */}
+      <button
+        type="button"
+        className="patterns-rail-kicker"
+        disabled={!!activeSlug}
+        onClick={() => {
+          const el = innerRef.current;
+          if (!el) return;
+          el.scrollTo({ left: 0, behavior: "smooth" });
+        }}
+        aria-label="Scroll patterns rail to start"
+      >
         Patterns
-      </div>
+      </button>
       <div
         className="patterns-rail-inner"
         ref={innerRef}
