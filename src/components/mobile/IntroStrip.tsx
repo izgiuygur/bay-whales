@@ -1,5 +1,3 @@
-import { useState } from "react";
-
 interface Props {
   /** Currently-visible (filtered) stranding count. */
   shownCount: number;
@@ -7,17 +5,16 @@ interface Props {
   totalCount: number;
 }
 
-// Dismiss is in-memory only on purpose: the user wants the strip to
-// come back on reload rather than stay hidden across visits.
+// Always-visible summary at the top of the mobile view. Updates with
+// the current filter / story state so the user can see "what am I
+// looking at" without having to interact with anything. Intentionally
+// not dismissable — losing this strip mid-story would leave the user
+// unable to tell whether the count they're seeing is filtered or not.
 export default function IntroStrip({ shownCount, totalCount }: Props) {
-  const [dismissed, setDismissed] = useState(false);
-
-  if (dismissed) return null;
-
   const filtered = shownCount !== totalCount;
 
   return (
-    <section className="m-intro" aria-label="About this map">
+    <section className="m-intro" aria-label="Stranding count">
       <p className="m-intro-text">
         {filtered ? (
           <>
@@ -33,14 +30,6 @@ export default function IntroStrip({ shownCount, totalCount }: Props) {
         Data from NOAA Fisheries, The Marine Mammal Center, and the
         California Academy of Sciences.
       </p>
-      <button
-        type="button"
-        className="m-intro-close"
-        onClick={() => setDismissed(true)}
-        aria-label="Dismiss introduction"
-      >
-        &times;
-      </button>
     </section>
   );
 }

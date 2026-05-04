@@ -142,19 +142,23 @@ export default function MobileLayout(props: Props) {
         onDismissNudge={onDismissPatternsNudge}
         variant="mobile"
       />
-      {activeStory && (
+
+      {/* Below the rail, render exactly one of {caption, list} —
+          when a story is open the caption takes the list's slot so
+          there's a single coherent content area under the rail. */}
+      {activeStory ? (
         <PatternCaption
           story={activeStory}
           onClose={onCloseStory}
           variant="mobile"
         />
+      ) : (
+        <StrandingList
+          ref={listRef}
+          records={records}
+          onOpen={(r) => setDetailRecord(r)}
+        />
       )}
-
-      <StrandingList
-        ref={listRef}
-        records={records}
-        onOpen={(r) => setDetailRecord(r)}
-      />
 
       <footer className="m-footer">
         <div className="m-footer-sources">

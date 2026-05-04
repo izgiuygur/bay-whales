@@ -143,6 +143,10 @@ export default function PatternsRail({
   );
   const handleRailMouseMove = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
+      // While a story is active the rail is locked: no edge auto-scroll,
+      // because the active pill is the focal point and we don't want it
+      // sliding away from center.
+      if (activeSlug) return stopAutoScroll();
       const el = innerRef.current;
       if (!el) return;
       // No overflow → nothing to scroll, bail.
@@ -156,8 +160,27 @@ export default function PatternsRail({
       else if (x > rect.width - edgeSize && !atRight) startAutoScroll(1);
       else stopAutoScroll();
     },
-    [startAutoScroll, stopAutoScroll]
+    [activeSlug, startAutoScroll, stopAutoScroll]
   );
+
+  // When a story becomes active (or the user switches stories), smooth-
+  // scroll the active pill so it sits centered in the rail viewport.
+  // Closing a story leaves the carousel where it is — letting the
+  // user see roughly the same set of pills they just had focused.
+  useEffect(() => {
+    if (!activeSlug) return;
+    const el = innerRef.current;
+    if (!el) return;
+    const target = el.querySelector<HTMLElement>(
+      `[data-slug="${CSS.escape(activeSlug)}"]`
+    );
+    if (!target) return;
+    target.scrollIntoView({
+      behavior: "smooth",
+      inline: "center",
+      block: "nearest",
+    });
+  }, [activeSlug]);
   // Always clean up the interval on unmount.
   useEffect(() => () => stopAutoScroll(), [stopAutoScroll]);
 
@@ -197,6 +220,7 @@ export default function PatternsRail({
             <button
               key={p.slug}
               type="button"
+              data-slug={p.slug}
               className={[
                 "pattern-pill",
                 `pattern-pill--${p.type}`,
@@ -204,19 +228,12 @@ export default function PatternsRail({
               ]
                 .filter(Boolean)
                 .join(" ")}
-              onClick={(e) => {
+              onClick={() => {
                 handleInteract();
                 onActivate(p.slug);
-                // If the pill the user just tapped is partially off
-                // the right or left edge of the scrollable rail,
-                // scroll it fully into view. `inline: "nearest"` is a
-                // no-op for pills that are already fully visible —
-                // we only get scrolling when it's actually needed.
-                e.currentTarget.scrollIntoView({
-                  behavior: "smooth",
-                  block: "nearest",
-                  inline: "nearest",
-                });
+                // The activeSlug effect below scrolls the newly-
+                // active pill to center automatically — no per-click
+                // scroll needed.
               }}
               aria-pressed={isActive}
               aria-label={`${ariaLabelPrefix}: ${p.headline}`}

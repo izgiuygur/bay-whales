@@ -1104,6 +1104,16 @@ body {
 
 /* When a story is active, the inactive (non-selected) pills dim
    slightly so the active one reads as "current". */
+/* Story mode: lock the carousel from manual scrolling (drag, wheel,
+   swipe). The active pill is the focal point — letting the user
+   scroll it offscreen would lose that anchor. Programmatic
+   scrollIntoView still works (browsers honor it regardless of
+   overflow:hidden / overscroll-behavior). */
+.patterns-rail--story-active .patterns-rail-inner {
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
+  touch-action: pan-y;
+}
 .patterns-rail--story-active .pattern-pill:not(.is-active) {
   opacity: 0.55;
 }
@@ -1141,13 +1151,13 @@ body {
   overflow-y: auto;
 }
 
+/* Mobile: caption flows inline in the slot the strandings list
+   normally occupies (it replaces the list while a story is open).
+   No fixed positioning, no max-height cap — the page can scroll
+   normally if the caption is long. */
 .pattern-caption--mobile {
-  position: fixed;
-  bottom: 12px;
-  left: 12px;
-  right: 12px;
-  max-height: 30vh;
-  overflow-y: auto;
+  position: relative;
+  margin: 6px 12px 12px;
 }
 
 @keyframes pattern-caption-in {
