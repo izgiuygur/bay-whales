@@ -69,6 +69,35 @@ export function createSelectedPinIcon(zoom: number): L.DivIcon {
   });
 }
 
+// Story-mode pin coloring — used by methodology pills that recolor
+// the dataset to make a meta-observation visible (e.g. "Marin pins
+// highlighted, all others greyed").
+const STORY_HIGHLIGHT_COLOR = "#0051BA";
+const STORY_DIM_COLOR = "rgba(120, 120, 120, 0.45)";
+
+export function createStoryHighlightPinIcon(
+  size: number,
+  species: string
+): L.DivIcon {
+  return createPinIcon(STORY_HIGHLIGHT_COLOR, size, `${species} story-hl`);
+}
+
+export function createStoryDimmedPinIcon(
+  size: number,
+  // species not used in the dimmed render (no per-species class needed
+  // since they all share the dim treatment) but kept in the signature
+  // so the call site looks symmetric with createStoryHighlightPinIcon.
+  _species: string
+): L.DivIcon {
+  const h = Math.round(size * 1.3);
+  return L.divIcon({
+    html: buildPinSvg(size, STORY_DIM_COLOR),
+    className: `whale-pin whale-pin--story-dim`,
+    iconSize: [size, h],
+    iconAnchor: [size / 2, h],
+  });
+}
+
 const iconCache = new Map<string, L.DivIcon>();
 
 export function getPinIcon(

@@ -18,6 +18,10 @@ import type { SpeciesKey } from "../types/whale";
 import {
   PIN_FALLBACK_COLOR as FALLBACK_DARK,
   getPinIcon,
+  pinSizeForZoom,
+  createStoryHighlightPinIcon,
+  createStoryDimmedPinIcon,
+  createSelectedPinIcon,
 } from "../lib/whalePin";
 import MapTooltip from "./MapTooltip";
 import InfoCard from "./InfoCard";
@@ -33,7 +37,39 @@ interface Props {
   initialPinId?: string | null;
   /** Ref populated with the Leaflet map instance once it's mounted. */
   mapRef?: React.MutableRefObject<L.Map | null>;
+  /** When a story is active, render its overlay on top of the map. */
+  storyOverlay?:
+    | {
+        type: "blob";
+        geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon;
+      }
+    | {
+        type: "corridor";
+        // Modeled as a polygon (the corridor band). LineStrings are
+        // also acceptable in the schema but we render polygons for
+        // consistent fill+stroke style.
+        geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon;
+      }
+    | { type: "heatmap" }
+    | null;
+  /** Optional named annotations (e.g. refinery / landmark labels)
+   *  rendered while the story is active. Sit above the overlay
+   *  polygon but below the data pins. */
+  storyAnnotations?: Array<{
+    lat: number;
+    lon: number;
+    label: string;
+    icon?: "ship" | "refinery" | "marker";
+    labelDir?: "left" | "right" | "top" | "bottom";
+  }>;
+  /** Story-mode predicate. When set, pins matching the predicate
+   *  render in story-blue and others render greyed-out. */
+  pinHighlight?: ((record: WhaleRecord) => boolean) | null;
 }
+
+// Story overlay tint — same brand blue as the timeline + story pills
+// so the editorial layer reads as part of one visual language.
+const STORY_OVERLAY_COLOR = "#0051BA";
 
 const BAY_CENTER: [number, number] = [37.7, -122.3];
 const BAY_ZOOM = 9;
@@ -79,6 +115,117 @@ function MapRefBridge({
       mapRef.current = null;
     };
   }, [map, mapRef]);
+  return null;
+}
+
+// Per-story map annotations (named landmarks, refineries, etc.).
+// Each annotation = a small circular icon placed at the lat/lon, plus
+// a short italic label offset in a chosen direction. Lives in a
+// custom Leaflet pane (z-index 555) so it renders ABOVE the overlay
+// polygon (overlay pane z-index 400) but BELOW the data pins (marker
+// pane z-index 600). Story-scoped: cleaned up when the story closes.
+const ANNOTATION_PANE = "storyAnnotationsPane";
+
+function annotationIconSvg(icon: "ship" | "refinery" | "marker"): string {
+  switch (icon) {
+    case "ship":
+      // Simple boat silhouette.
+      return `<svg viewBox="0 0 24 24" fill="currentColor" width="11" height="11"><path d="M3 17h18l-2 4H5z"/><path d="M11 4h2v9h-2z"/></svg>`;
+    case "refinery":
+      // Stylized tank with two smokestacks.
+      return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="11" height="11"><rect x="4" y="11" width="14" height="9" /><line x1="9" y1="11" x2="9" y2="4" /><line x1="13" y1="11" x2="13" y2="4" /></svg>`;
+    case "marker":
+    default:
+      return `<svg viewBox="0 0 8 8" width="6" height="6"><circle cx="4" cy="4" r="3" fill="currentColor"/></svg>`;
+  }
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function StoryAnnotationLayer({
+  annotations,
+}: {
+  annotations: NonNullable<Props["storyAnnotations"]>;
+}) {
+  const map = useMap();
+  useEffect(() => {
+    if (!map.getPane(ANNOTATION_PANE)) {
+      map.createPane(ANNOTATION_PANE);
+      const pane = map.getPane(ANNOTATION_PANE);
+      if (pane) {
+        pane.style.zIndex = "555";
+        pane.style.pointerEvents = "none";
+      }
+    }
+
+    const created: L.Marker[] = [];
+    for (const a of annotations) {
+      const dir = a.labelDir ?? "right";
+      const iconKind = a.icon ?? "marker";
+      const html = `
+        <div class="story-annotation story-annotation--${dir}">
+          <div class="story-annotation-dot story-annotation-dot--${iconKind}">
+            ${annotationIconSvg(iconKind)}
+          </div>
+          <span class="story-annotation-label">${escapeHtml(a.label)}</span>
+        </div>
+      `;
+      const icon = L.divIcon({
+        html,
+        // 0/0 sizing means the divIcon doesn't reserve any space; we
+        // position the dot ourselves inside .story-annotation, anchored
+        // at the lat/lon point.
+        className: "story-annotation-marker",
+        iconSize: [0, 0],
+        iconAnchor: [0, 0],
+      });
+      const marker = L.marker([a.lat, a.lon], {
+        icon,
+        interactive: false,
+        keyboard: false,
+        pane: ANNOTATION_PANE,
+      });
+      marker.addTo(map);
+      created.push(marker);
+    }
+    return () => {
+      for (const m of created) map.removeLayer(m);
+    };
+  }, [annotations, map]);
+  return null;
+}
+
+// Density "heatmap" via stacked translucent circles. Uses the filtered
+// records prop, so the heatmap automatically reflects the story's
+// active filters (e.g., spring 2025 grays only). We size circles in
+// meters rather than pixels so the bloom scales sensibly when the
+// user pans/zooms inside the story.
+function HeatmapLayer({ records }: { records: WhaleRecord[] }) {
+  const map = useMap();
+  useEffect(() => {
+    const circles: L.Circle[] = [];
+    for (const r of records) {
+      const c = L.circle([r.latitude, r.longitude], {
+        radius: 600, // meters — chosen so adjacent strandings overlap visibly
+        color: "#0051BA",
+        weight: 0,
+        fillColor: "#0051BA",
+        fillOpacity: 0.14,
+        interactive: false,
+      });
+      c.addTo(map);
+      circles.push(c);
+    }
+    return () => {
+      for (const c of circles) map.removeLayer(c);
+    };
+  }, [records, map]);
   return null;
 }
 
@@ -315,6 +462,10 @@ interface MarkerLayerProps {
   onMouseOver: (record: WhaleRecord, e: LeafletMouseEvent) => void;
   onMouseOut: () => void;
   onClick: (record: WhaleRecord, e: LeafletMouseEvent) => void;
+  /** Story-mode predicate. When set, pins matching the predicate
+   *  render in story-blue (highlighted) and pins NOT matching render
+   *  greyed-out / low-opacity. Used by methodology pills. */
+  pinHighlight?: ((record: WhaleRecord) => boolean) | null;
 }
 
 // Renders one native Leaflet marker per record and wires them into an
@@ -332,6 +483,7 @@ function WhaleMarkerLayer({
   onMouseOver,
   onMouseOut,
   onClick,
+  pinHighlight,
 }: MarkerLayerProps) {
   const map = useMap();
   // Stable OMS instance across re-renders — created once per map.
@@ -400,12 +552,26 @@ function WhaleMarkerLayer({
     // when overlapping effect cleanups run out of order).
     const created: L.Marker[] = [];
 
+    const baseSize = pinSizeForZoom(zoom);
     let pinIndex = 0;
     for (const record of records) {
       const isSelected = selectedId === record.id;
-      const marker = L.marker([record.latitude, record.longitude], {
-        icon: getPinIcon(record.species, isSelected, zoom),
-      });
+      // Choose the right icon for this pin:
+      //   selected               → black "selected" pin
+      //   methodology highlight  → story-blue pin
+      //   methodology non-match  → grey, low-opacity pin
+      //   normal                 → species-colored pin
+      let icon;
+      if (isSelected) {
+        icon = createSelectedPinIcon(zoom);
+      } else if (pinHighlight) {
+        icon = pinHighlight(record)
+          ? createStoryHighlightPinIcon(baseSize, record.species)
+          : createStoryDimmedPinIcon(baseSize, record.species);
+      } else {
+        icon = getPinIcon(record.species, isSelected, zoom);
+      }
+      const marker = L.marker([record.latitude, record.longitude], { icon });
       // Attach the record so the OMS click handler can look it up.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (marker as any).__whaleRecord = record;
@@ -443,7 +609,7 @@ function WhaleMarkerLayer({
         oms.removeMarker(m);
       }
     };
-  }, [records, selectedId, zoom, map, onMouseOver, onMouseOut]);
+  }, [records, selectedId, zoom, map, onMouseOver, onMouseOut, pinHighlight]);
 
   return null;
 }
@@ -456,6 +622,9 @@ export default function WhaleMap({
   initialView,
   initialPinId,
   mapRef,
+  storyOverlay,
+  storyAnnotations,
+  pinHighlight,
 }: Props) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -615,6 +784,10 @@ export default function WhaleMap({
         maxZoom={18}
         maxBounds={MAX_BOUNDS}
         maxBoundsViscosity={0.8}
+        // Allow half-integer zooms (10.5, 11.5…). Stories use these to
+        // dial framing in with finer granularity than the default
+        // integer steps would allow.
+        zoomSnap={0.5}
         className="leaflet-map"
         zoomControl={false}
         attributionControl={false}
@@ -647,6 +820,45 @@ export default function WhaleMap({
         {pre2013Lanes && showPre2013Lanes && (
           <GeoJSON key="pre2013-lanes" data={pre2013Lanes} style={pre2013LaneStyle} />
         )}
+        {storyOverlay &&
+          (storyOverlay.type === "blob" || storyOverlay.type === "corridor") && (
+            // Soft tint highlighting the story's region. Renders above
+            // tile/water/coastline but BELOW pins (the marker pane sits
+            // higher in Leaflet's pane stack), so individual records
+            // remain clearly visible. Same render path for blob and
+            // corridor — only the polygon shape differs.
+            <GeoJSON
+              key={`story-${storyOverlay.type}-${
+                JSON.stringify(storyOverlay.geometry.coordinates).slice(0, 32)
+              }`}
+              data={
+                {
+                  type: "Feature",
+                  geometry: storyOverlay.geometry,
+                  properties: {},
+                } as GeoJSON.Feature
+              }
+              style={() => ({
+                fillColor: STORY_OVERLAY_COLOR,
+                fillOpacity: 0.22,
+                color: STORY_OVERLAY_COLOR,
+                weight: storyOverlay.type === "corridor" ? 1.5 : 1.25,
+                opacity: 0.6,
+                interactive: false,
+              })}
+            />
+          )}
+        {storyOverlay && storyOverlay.type === "heatmap" && (
+          // Density "heatmap": stacked translucent circles centered on
+          // each filtered record. Where pins concentrate, circles
+          // overlap and the blue gets visibly denser. No external
+          // heatmap library — keeps the bundle lean and gives us
+          // exact control over the look.
+          <HeatmapLayer records={records} />
+        )}
+        {storyAnnotations && storyAnnotations.length > 0 && (
+          <StoryAnnotationLayer annotations={storyAnnotations} />
+        )}
         <ZoomHandler onZoom={setZoom} />
         <MapRefBridge mapRef={mapRef} />
         <BayAreaLabels zoom={zoom} />
@@ -658,6 +870,7 @@ export default function WhaleMap({
           onMouseOver={handleMouseOver}
           onMouseOut={handleMouseOut}
           onClick={handleClick}
+          pinHighlight={pinHighlight}
         />
       </MapContainer>
 

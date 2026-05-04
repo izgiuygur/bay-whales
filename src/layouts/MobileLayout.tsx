@@ -15,6 +15,9 @@ import FilterSheet from "../components/mobile/FilterSheet";
 import DetailSheet from "../components/mobile/DetailSheet";
 import ExpandedMapModal from "../components/mobile/ExpandedMapModal";
 import ShareButton from "../components/ShareButton";
+import PatternsRail from "../components/PatternsRail";
+import PatternCaption from "../components/PatternCaption";
+import type { PatternEntry } from "../data/patterns";
 
 interface Props {
   records: WhaleRecord[]; // filtered list
@@ -37,6 +40,13 @@ interface Props {
   getShareState: () => ShareableState;
   initialPinId?: string | null;
   onAboutClick: () => void;
+  // Patterns Rail integration
+  activeStorySlug: string | null;
+  activeStory: PatternEntry | null;
+  onActivateStory: (slug: string) => void;
+  onCloseStory: () => void;
+  patternsNudge: boolean;
+  onDismissPatternsNudge: () => void;
 }
 
 export default function MobileLayout(props: Props) {
@@ -61,6 +71,12 @@ export default function MobileLayout(props: Props) {
     getShareState,
     initialPinId,
     onAboutClick,
+    activeStorySlug,
+    activeStory,
+    onActivateStory,
+    onCloseStory,
+    patternsNudge,
+    onDismissPatternsNudge,
   } = props;
 
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -86,7 +102,7 @@ export default function MobileLayout(props: Props) {
   }, []);
 
   return (
-    <div className="m-root">
+    <div className={`m-root ${activeStory ? "m-root--story-mode" : ""}`}>
       <MobileHeader
         filters={filters}
         onOpenFilters={() => setFiltersOpen(true)}
@@ -115,7 +131,24 @@ export default function MobileLayout(props: Props) {
         records={records}
         onPinTap={handleMiniPinTap}
         onExpand={() => setExpandedMapOpen(true)}
+        showPatternsAffordance={patternsNudge && !activeStorySlug}
       />
+
+      {/* Patterns rail — sits between map and list, framed by both. */}
+      <PatternsRail
+        activeSlug={activeStorySlug}
+        onActivate={onActivateStory}
+        firstVisit={patternsNudge}
+        onDismissNudge={onDismissPatternsNudge}
+        variant="mobile"
+      />
+      {activeStory && (
+        <PatternCaption
+          story={activeStory}
+          onClose={onCloseStory}
+          variant="mobile"
+        />
+      )}
 
       <StrandingList
         ref={listRef}

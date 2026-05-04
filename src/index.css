@@ -896,6 +896,485 @@ body {
   background: #ffffff;
 }
 
+/* =====================================================================
+   Patterns Rail
+   ---------------------------------------------------------------------
+   Curated stories about the strandings data. A horizontal pill row
+   sits at the bottom of the map (desktop) or between mini-map and
+   list (mobile). One click activates: filters freeze, map pans,
+   overlay shape fades in, caption opens.
+   ===================================================================== */
+
+:root {
+  /* Story chrome uses the same brand blue family as the timeline,
+     so pills, caption accent, and overlay tint all read as one. */
+  --story-blue: #0051BA;
+  --story-blue-deep: #003C8A;
+  --story-blue-passive: rgba(0, 81, 186, 0.85);  /* matches timeline year label */
+  --story-blue-faint: rgba(0, 81, 186, 0.28);    /* matches timeline passive bar */
+  --story-blue-tint: rgba(0, 81, 186, 0.06);
+}
+
+.patterns-rail {
+  z-index: 450;
+  pointer-events: auto;
+}
+
+/* Desktop: floats above the map, full-width centered, stops short of
+   the timeline (right edge) and left rail (left edge). */
+.patterns-rail--desktop {
+  position: absolute;
+  bottom: 50px;
+  left: 60px;
+  right: 170px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+/* Mobile: inline between mini-map and list; full bleed with a faded
+   edge for horizontal scroll. Kicker stacks above the strip. */
+.patterns-rail--mobile {
+  position: relative;
+  margin: 6px 0 10px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+
+/* "PATTERNS" kicker — small, brand-blue, all-caps eyebrow that anchors
+   the strip and makes the section feel like a curated module rather
+   than a row of orphan buttons. */
+.patterns-rail-kicker {
+  font-family: var(--font);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--story-blue);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.patterns-rail--mobile .patterns-rail-kicker {
+  padding: 0 14px;
+}
+
+.patterns-rail-inner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  /* Faded scroll edges hint at horizontal scrollability when the row
+     overflows. No background container — the pills float directly
+     on the map / page. */
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 16px,
+    #000 calc(100% - 16px),
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 16px,
+    #000 calc(100% - 16px),
+    transparent 100%
+  );
+  padding: 4px 18px;
+}
+.patterns-rail-inner::-webkit-scrollbar { display: none; }
+
+.pattern-pill {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  /* Tightened from 6px 12px → 5px 9px (~25% horizontal reduction).
+     The "PATTERNS" kicker + pill geometry already signal interactivity,
+     so we don't need extra breathing room around the label. */
+  padding: 5px 9px;
+  /* Rounded rectangle, distinct from the species pills' fully-rounded
+     pill geometry. Pills there read as "tag/filter"; these read as
+     "button/action". */
+  border-radius: 6px;
+  font-family: var(--font);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    transform 160ms ease-out,
+    background-color 160ms ease-out,
+    border-color 160ms ease-out,
+    color 160ms ease-out;
+}
+
+/* Pattern pills — solid brand blue with white text and icons. Reads
+   as a clear call-to-action against the white map. */
+.pattern-pill--pattern {
+  background: var(--story-blue);
+  color: #fff;
+  border: 1px solid var(--story-blue);
+}
+.pattern-pill--pattern:hover,
+.pattern-pill--pattern:focus-visible {
+  background: var(--story-blue-deep);
+  border-color: var(--story-blue-deep);
+  outline: none;
+}
+
+/* Methodology pills — outlined treatment retained so they read as
+   "meta-observation" rather than an action. Used in Phase 3. */
+.pattern-pill--methodology {
+  background: #fff;
+  color: var(--story-blue);
+  border: 1px dashed var(--story-blue);
+}
+.pattern-pill--methodology:hover,
+.pattern-pill--methodology:focus-visible {
+  background: var(--story-blue-tint);
+  outline: none;
+}
+
+/* Active pill — same solid blue as rest, but with a thin outer ring
+   so the active story is unambiguous. */
+.pattern-pill.is-active {
+  background: var(--story-blue-deep);
+  border-color: var(--story-blue-deep);
+  box-shadow: 0 0 0 2px rgba(0, 81, 186, 0.25);
+}
+.pattern-pill--methodology.is-active {
+  background: var(--story-blue);
+  color: #fff;
+  border-style: solid;
+}
+
+.pattern-pill-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+.pattern-pill-arrow {
+  font-size: 13px;
+  line-height: 1;
+  opacity: 0.85;
+  /* Hidden by default — the kicker + pill shape already signal
+     interactivity. Slot in (animated) on hover/focus, and stays
+     visible on the active pill (it's a "×" close affordance). */
+  display: inline-block;
+  width: 0;
+  margin-left: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: width 160ms ease, margin-left 160ms ease, opacity 160ms ease;
+}
+.pattern-pill:hover .pattern-pill-arrow,
+.pattern-pill:focus-visible .pattern-pill-arrow,
+.pattern-pill.is-active .pattern-pill-arrow {
+  /* Wide enough to fit "→" at 13px font without clipping (the glyph
+     is ~13–14px wide). 10px was cutting off the head of the arrow. */
+  width: 14px;
+  margin-left: 3px;
+  opacity: 0.9;
+}
+
+/* First-visit nudge — slide the rail in from below, then a brief
+   blue glow on each pill so the eye lands on something tappable
+   rather than a featureless container. Stops on first interaction. */
+@keyframes patterns-rail-slidein {
+  from { transform: translateY(40px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+@keyframes patterns-pill-glow {
+  0%, 100% { box-shadow: none; }
+  50%      { box-shadow: 0 0 0 3px rgba(0, 81, 186, 0.16); }
+}
+.patterns-rail--nudge .patterns-rail-inner {
+  animation: patterns-rail-slidein 700ms ease-out 0s 1 backwards;
+}
+.patterns-rail--nudge .pattern-pill {
+  animation: patterns-pill-glow 2400ms ease-in-out 800ms 2;
+}
+
+/* When a story is active, the inactive (non-selected) pills dim
+   slightly so the active one reads as "current". */
+.patterns-rail--story-active .pattern-pill:not(.is-active) {
+  opacity: 0.55;
+}
+.patterns-rail--story-active .pattern-pill:not(.is-active):hover {
+  opacity: 0.85;
+}
+
+/* =====================================================================
+   Pattern Caption — editorial card shown while a story is active.
+   ===================================================================== */
+.pattern-caption {
+  position: absolute;
+  z-index: 460;
+  background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border-radius: 10px;
+  border: 1px solid rgba(0, 81, 186, 0.18);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.12);
+  padding: 14px 16px 14px 16px;
+  font-family: var(--font);
+  color: #1a1a1a;
+  animation: pattern-caption-in 280ms ease-out;
+}
+
+.pattern-caption--desktop {
+  bottom: 110px;
+  left: 60px;
+  width: clamp(280px, 26vw, 380px);
+  /* Width and bottom anchor stay fixed; the box grows UP as the
+     caption gets longer rather than scrolling internally. The cap is
+     "everything from the bottom anchor to ~20px below the viewport
+     top" so a runaway caption can't push past the page header. */
+  max-height: calc(100vh - 130px);
+  overflow-y: auto;
+}
+
+.pattern-caption--mobile {
+  position: fixed;
+  bottom: 12px;
+  left: 12px;
+  right: 12px;
+  max-height: 30vh;
+  overflow-y: auto;
+}
+
+@keyframes pattern-caption-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.pattern-caption-eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--story-blue);
+  margin-bottom: 6px;
+}
+.pattern-caption-title {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.25;
+  margin: 0 28px 8px 0;
+  color: #1a1a1a;
+}
+.pattern-caption-body {
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0 0 10px 0;
+  color: #333;
+}
+.pattern-caption-link {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--story-blue);
+  text-decoration: none;
+  border-bottom: 1px solid currentColor;
+  padding-bottom: 1px;
+}
+.pattern-caption-link:hover {
+  color: var(--story-blue-deep);
+}
+.pattern-caption-close {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  width: 26px;
+  height: 26px;
+  border: none;
+  background: transparent;
+  color: #888;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pattern-caption-close:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #333;
+}
+.pattern-caption-close:focus-visible {
+  outline: 2px solid var(--story-blue);
+  outline-offset: 1px;
+}
+
+/* =====================================================================
+   Story-mode lock — visually disable filter UIs while a story is on.
+   The values that the story applied stay visible (so the user can see
+   what the story is "showing"), but they aren't editable.
+   ===================================================================== */
+.app--story-mode .left-rail-wrapper,
+.app--story-mode .species-filter,
+.app--story-mode .timeline,
+.m-root--story-mode .m-species-strip,
+.m-root--story-mode .m-year-strip,
+.m-root--story-mode .m-header-filter-btn {
+  opacity: 0.55;
+  pointer-events: none;
+}
+.app--story-mode .left-rail-wrapper *,
+.app--story-mode .species-filter *,
+.app--story-mode .timeline *,
+.m-root--story-mode .m-species-strip *,
+.m-root--story-mode .m-year-strip *,
+.m-root--story-mode .m-header-filter-btn * {
+  cursor: not-allowed !important;
+}
+
+/* Mobile mini-map "Patterns ↓" hint — bottom-edge fade signaling
+   there's a section below worth scrolling to. */
+.m-minimap-patterns-hint {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 8px 12px 6px;
+  text-align: center;
+  font-family: var(--font);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--story-blue);
+  background: linear-gradient(
+    to top,
+    rgba(255, 255, 255, 0.92) 0%,
+    rgba(255, 255, 255, 0.6) 60%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  pointer-events: none;
+  animation: m-minimap-hint-pulse 2000ms ease-in-out infinite;
+  z-index: 5;
+}
+.m-minimap-patterns-hint-arrow {
+  display: inline-block;
+  margin-left: 2px;
+  animation: m-minimap-hint-bounce 1400ms ease-in-out infinite;
+}
+@keyframes m-minimap-hint-pulse {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 0.95; }
+}
+@keyframes m-minimap-hint-bounce {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(2px); }
+}
+
+/* =====================================================================
+   Per-story map annotations — small labeled markers (refineries,
+   landmarks, etc.) rendered while a story is active. Configured via
+   PatternEntry.annotations. Story-scoped: cleaned up on close.
+   ===================================================================== */
+
+.story-annotation-marker {
+  /* Leaflet wraps every divIcon in this class. We want the inner
+     content (`.story-annotation`) to position itself; the wrapper
+     has zero size at the lat/lon. */
+  pointer-events: none;
+}
+
+.story-annotation {
+  /* The lat/lon point sits at this element's (0, 0). The icon dot
+     positions itself centered on (0, 0); the label flows in
+     `labelDir` from there. */
+  position: absolute;
+  pointer-events: none;
+  font-family: var(--font);
+  /* Subtle fade-in matching the overlay polygon. */
+  animation: story-annotation-in 350ms ease-out;
+}
+
+.story-annotation-dot {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Center the dot exactly on the marker's lat/lon. */
+  left: -9px;
+  top: -9px;
+  background: rgba(0, 81, 186, 0.92);
+  color: #fff;
+  /* White ring for legibility against varied basemap tones. */
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.92);
+}
+
+.story-annotation-label {
+  position: absolute;
+  font-size: 11px;
+  font-weight: 500;
+  font-style: italic;
+  letter-spacing: 0.01em;
+  color: var(--story-blue-deep);
+  background: rgba(255, 255, 255, 0.88);
+  padding: 1px 6px;
+  border-radius: 3px;
+  white-space: nowrap;
+  /* Subtle outline so the label reads against any basemap region. */
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+/* Direction variants — label sits beside the dot. */
+.story-annotation--right .story-annotation-label {
+  left: 14px;
+  top: -8px;          /* align label vertical center with dot center */
+  height: 16px;
+  display: flex;
+  align-items: center;
+}
+.story-annotation--left .story-annotation-label {
+  right: 14px;
+  top: -8px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+}
+.story-annotation--top .story-annotation-label {
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 14px;
+}
+.story-annotation--bottom .story-annotation-label {
+  left: 50%;
+  transform: translateX(-50%);
+  top: 14px;
+}
+
+@keyframes story-annotation-in {
+  from { opacity: 0; transform: scale(0.9); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* prefers-reduced-motion: skip all the slide/pulse/bounce. The story
+   still works — it just snaps into place rather than animating. */
+@media (prefers-reduced-motion: reduce) {
+  .patterns-rail--nudge .patterns-rail-inner,
+  .pattern-caption,
+  .m-minimap-patterns-hint,
+  .m-minimap-patterns-hint-arrow,
+  .story-annotation {
+    animation: none !important;
+  }
+}
+
 /* Bottom-right attribution. Two stacked lines (data on top, basemap
    below), equal visual weight. The translucent gradient strip below
    (.map-fadeout) keeps both legible against any basemap region. */

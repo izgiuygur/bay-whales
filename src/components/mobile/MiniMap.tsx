@@ -12,6 +12,10 @@ interface Props {
   records: WhaleRecord[];
   onPinTap: (recordId: string) => void;
   onExpand: () => void;
+  /** Show a subtle "Patterns ↓" affordance fading at the bottom of the
+   *  map, signaling there's more below. Used as a first-visit hint;
+   *  goes away after the user has interacted with the rail. */
+  showPatternsAffordance?: boolean;
 }
 
 // Inner layer: adds pins imperatively the same way WhaleMap does,
@@ -95,7 +99,12 @@ function MiniLegend() {
   );
 }
 
-export default function MiniMap({ records, onPinTap, onExpand }: Props) {
+export default function MiniMap({
+  records,
+  onPinTap,
+  onExpand,
+  showPatternsAffordance,
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   return (
@@ -141,6 +150,17 @@ export default function MiniMap({ records, onPinTap, onExpand }: Props) {
         </svg>
       </button>
       <MiniLegend />
+      {showPatternsAffordance && (
+        // Subtle bottom-edge hint that there's a Patterns rail below.
+        // Pulses gently while the nudge is active; the parent clears
+        // it on first interaction.
+        <div
+          className="m-minimap-patterns-hint"
+          aria-hidden="true"
+        >
+          Patterns <span className="m-minimap-patterns-hint-arrow">↓</span>
+        </div>
+      )}
     </div>
   );
 }
