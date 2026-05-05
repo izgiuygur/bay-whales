@@ -242,16 +242,47 @@ export default function App() {
     return { min: Math.min(...yrs), max: Math.max(...yrs) };
   }, [records]);
 
+  // yearCounts drives the count bars on the year strip / timeline.
+  // It respects every active filter EXCEPT the year-range itself —
+  // applying the year range here would zero out bars for any year
+  // the user picked, defeating the purpose of seeing the comparison.
+  //
+  // Stories with `keepTimelineActive: true` opt OUT of having their
+  // own predicate / clipPins narrow the year strip. The user-set
+  // filter dimensions still apply (those came from the user, not
+  // the story) but the story's editorial filter doesn't, so the
+  // bars can show full-dataset context against the filtered map.
   const yearCounts = useMemo(() => {
     const counts: Record<number, number> = {};
     for (let y = years.min; y <= years.max; y++) counts[y] = 0;
+    const applyStoryFilters = !activeStory?.keepTimelineActive;
     for (const r of records) {
-      if (r.year >= years.min && r.year <= years.max) {
-        counts[r.year] = (counts[r.year] || 0) + 1;
+      if (r.year < years.min || r.year > years.max) continue;
+      if (filters.species.has(r.species)) continue;
+      if (filters.month.size > 0 && !filters.month.has(r.month)) continue;
+      if (filters.county.size > 0 && !filters.county.has(r.county)) continue;
+      if (!matchesFindings(r, filters.findings)) continue;
+      if (filters.ageClass.size > 0 && !filters.ageClass.has(r.ageClass)) continue;
+      if (filters.sex.size > 0 && !filters.sex.has(r.sex)) continue;
+      if (
+        filters.affiliation.size > 0 &&
+        !filters.affiliation.has(r.affiliation)
+      )
+        continue;
+      if (!matchesLocationConfidence(r, filters.locationConfidence)) continue;
+      if (applyStoryFilters) {
+        if (
+          activeStory?.clipPins &&
+          !pointInPolygonGeometry(r.longitude, r.latitude, activeStory.clipPins)
+        )
+          continue;
+        if (activeStory?.recordPredicate && !activeStory.recordPredicate(r))
+          continue;
       }
+      counts[r.year] = (counts[r.year] || 0) + 1;
     }
     return counts;
-  }, [records, years]);
+  }, [records, years, filters, activeStory]);
 
   const filtered = useMemo(() => {
     return records.filter((r) => {
@@ -618,7 +649,15 @@ export default function App() {
   }
 
   return (
-    <div className={`app ${activeStory ? "app--story-mode" : ""}`}>
+    <div
+      className={[
+        "app",
+        activeStory ? "app--story-mode" : "",
+        activeStory?.keepTimelineActive ? "app--story-keeps-timeline" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
       {showHero && (
         <HeroIntro
           totalCount={records.length}
@@ -667,7 +706,13 @@ export default function App() {
                         | GeoJSON.MultiPolygon,
                     }
                   : activeStory.overlay.type === "heatmap"
-                    ? { type: "heatmap" }
+                    ? {
+                        type: "heatmap",
+                        color: activeStory.overlay.color,
+                        colorFor: activeStory.overlay.colorFor,
+                        radius: activeStory.overlay.radius,
+                        fillOpacity: activeStory.overlay.fillOpacity,
+                      }
                     : null
               : null
           }
@@ -677,6 +722,7 @@ export default function App() {
               ? activeStory.overlay.predicate
               : null
           }
+          pinColorFor={activeStory?.pinColorFor}
         />
         <SpeciesFilter
           hidden={filters.species}
@@ -694,6 +740,7 @@ export default function App() {
             selectedRange={selectedRange}
             filters={filters}
             summaryOverride={activeStory?.summaryOverride}
+            summaryYearLabel={activeStory?.summaryYearLabel}
           />
         </div>
         <TimelineSlider
@@ -702,6 +749,7 @@ export default function App() {
           value={selectedRange}
           onChange={setSelectedRange}
           yearCounts={yearCounts}
+          yearMarkers={activeStory?.yearMarkers}
         />
         {/* Patterns rail — curated stories, one click activates a
             preset filter+map+overlay+caption combo. */}

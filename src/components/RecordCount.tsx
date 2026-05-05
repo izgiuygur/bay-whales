@@ -19,6 +19,10 @@ interface Props {
    *  single editorial label like "Rare species" or "Marin only". The
    *  year range and stranding count stay auto-generated. */
   summaryOverride?: string;
+  /** Optional replacement for the year-range portion of the summary.
+   *  Used when a story's "year scope" can't be expressed as a
+   *  contiguous range — e.g. "9 marine heatwave years". */
+  summaryYearLabel?: string;
 }
 
 // Short month label for the tag row ("Mar", "Apr", …).
@@ -66,13 +70,17 @@ export default function RecordCount({
   selectedRange,
   filters,
   summaryOverride,
+  summaryYearLabel,
 }: Props) {
+  // Story-supplied yearLabel takes precedence; otherwise derive from
+  // the user's selectedRange. Default = full dataset range.
   const yearLabel =
-    selectedRange === null
+    summaryYearLabel ??
+    (selectedRange === null
       ? `${yearMin}–${yearMax}`
       : selectedRange.start === selectedRange.end
         ? String(selectedRange.start)
-        : `${selectedRange.start}–${selectedRange.end}`;
+        : `${selectedRange.start}–${selectedRange.end}`);
 
   // filters.species = HIDDEN species. Derive the label from which pill
   // groups are still visible (active pills), not from the hidden set.

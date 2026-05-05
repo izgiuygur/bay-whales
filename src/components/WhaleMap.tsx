@@ -17,6 +17,7 @@ import type { SpeciesKey } from "../types/whale";
 // can reuse the exact same geometry + palette.
 import {
   PIN_FALLBACK_COLOR as FALLBACK_DARK,
+  createPinIcon,
   getPinIcon,
   pinSizeForZoom,
   createStoryHighlightPinIcon,
@@ -50,7 +51,13 @@ interface Props {
         // consistent fill+stroke style.
         geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon;
       }
-    | { type: "heatmap" }
+    | {
+        type: "heatmap";
+        color?: string;
+        colorFor?: (r: WhaleRecord) => string;
+        radius?: number;
+        fillOpacity?: number;
+      }
     | null;
   /** Optional named annotations (e.g. refinery / landmark labels)
    *  rendered while the story is active. Sit above the overlay
@@ -65,6 +72,8 @@ interface Props {
   /** Story-mode predicate. When set, pins matching the predicate
    *  render in story-blue and others render greyed-out. */
   pinHighlight?: ((record: WhaleRecord) => boolean) | null;
+  /** Story-mode per-pin color override (warm-seas). */
+  pinColorFor?: ((record: WhaleRecord) => string) | null;
 }
 
 // Story overlay tint — same brand blue as the timeline + story pills
@@ -201,31 +210,47 @@ function StoryAnnotationLayer({
   return null;
 }
 
-// Density "heatmap" via stacked translucent circles. Uses the filtered
-// records prop, so the heatmap automatically reflects the story's
-// active filters (e.g., spring 2025 grays only). We size circles in
-// meters rather than pixels so the bloom scales sensibly when the
-// user pans/zooms inside the story.
-function HeatmapLayer({ records }: { records: WhaleRecord[] }) {
+// Density "heatmap" / halo layer. Renders a translucent circle
+// centered on each filtered record; overlapping circles alpha-blend
+// so dense areas read as more saturated. Color/radius/opacity are
+// per-story tunable — spring-2025 uses blue/600m/0.14 for "data
+// density" feel; warm-seas uses orange/1200m/0.07 for "heat".
+function HeatmapLayer({
+  records,
+  color,
+  colorFor,
+  radius,
+  fillOpacity,
+}: {
+  records: WhaleRecord[];
+  color?: string;
+  colorFor?: (r: WhaleRecord) => string;
+  radius?: number;
+  fillOpacity?: number;
+}) {
   const map = useMap();
   useEffect(() => {
+    const fallback = color ?? "#0051BA";
+    const radiusVal = radius ?? 600;
+    const opacityVal = fillOpacity ?? 0.14;
     const circles: L.Circle[] = [];
     for (const r of records) {
-      const c = L.circle([r.latitude, r.longitude], {
-        radius: 600, // meters — chosen so adjacent strandings overlap visibly
-        color: "#0051BA",
+      const c = colorFor ? colorFor(r) : fallback;
+      const circle = L.circle([r.latitude, r.longitude], {
+        radius: radiusVal,
+        color: c,
         weight: 0,
-        fillColor: "#0051BA",
-        fillOpacity: 0.14,
+        fillColor: c,
+        fillOpacity: opacityVal,
         interactive: false,
       });
-      c.addTo(map);
-      circles.push(c);
+      circle.addTo(map);
+      circles.push(circle);
     }
     return () => {
-      for (const c of circles) map.removeLayer(c);
+      for (const x of circles) map.removeLayer(x);
     };
-  }, [records, map]);
+  }, [records, map, color, colorFor, radius, fillOpacity]);
   return null;
 }
 
@@ -466,6 +491,12 @@ interface MarkerLayerProps {
    *  render in story-blue (highlighted) and pins NOT matching render
    *  greyed-out / low-opacity. Used by methodology pills. */
   pinHighlight?: ((record: WhaleRecord) => boolean) | null;
+  /** Story-mode per-pin color override. When set, each pin renders
+   *  in the returned color instead of its species color. Takes
+   *  precedence over the species default and over `pinHighlight`,
+   *  but NOT over the black "selected" pin. Used by warm-seas to
+   *  encode heatwave intensity on each pin. */
+  pinColorFor?: ((record: WhaleRecord) => string) | null;
 }
 
 // Renders one native Leaflet marker per record and wires them into an
@@ -484,6 +515,7 @@ function WhaleMarkerLayer({
   onMouseOut,
   onClick,
   pinHighlight,
+  pinColorFor,
 }: MarkerLayerProps) {
   const map = useMap();
   // Stable OMS instance across re-renders — created once per map.
@@ -558,12 +590,15 @@ function WhaleMarkerLayer({
       const isSelected = selectedId === record.id;
       // Choose the right icon for this pin:
       //   selected               → black "selected" pin
+      //   pinColorFor (warm-seas)→ pin in the story-supplied color
       //   methodology highlight  → story-blue pin
       //   methodology non-match  → grey, low-opacity pin
       //   normal                 → species-colored pin
       let icon;
       if (isSelected) {
         icon = createSelectedPinIcon(zoom);
+      } else if (pinColorFor) {
+        icon = createPinIcon(pinColorFor(record), baseSize, record.species);
       } else if (pinHighlight) {
         icon = pinHighlight(record)
           ? createStoryHighlightPinIcon(baseSize, record.species)
@@ -609,7 +644,16 @@ function WhaleMarkerLayer({
         oms.removeMarker(m);
       }
     };
-  }, [records, selectedId, zoom, map, onMouseOver, onMouseOut, pinHighlight]);
+  }, [
+    records,
+    selectedId,
+    zoom,
+    map,
+    onMouseOver,
+    onMouseOut,
+    pinHighlight,
+    pinColorFor,
+  ]);
 
   return null;
 }
@@ -625,6 +669,7 @@ export default function WhaleMap({
   storyOverlay,
   storyAnnotations,
   pinHighlight,
+  pinColorFor,
 }: Props) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -849,12 +894,18 @@ export default function WhaleMap({
             />
           )}
         {storyOverlay && storyOverlay.type === "heatmap" && (
-          // Density "heatmap": stacked translucent circles centered on
-          // each filtered record. Where pins concentrate, circles
-          // overlap and the blue gets visibly denser. No external
-          // heatmap library — keeps the bundle lean and gives us
-          // exact control over the look.
-          <HeatmapLayer records={records} />
+          // Density "heatmap" / halo layer: stacked translucent
+          // circles centered on each filtered record. Color, radius,
+          // and per-pin opacity are per-story tunable so the same
+          // renderer covers both "blue density" (spring-2025) and
+          // "warm halo" (warm-seas) stories.
+          <HeatmapLayer
+            records={records}
+            color={storyOverlay.color}
+            colorFor={storyOverlay.colorFor}
+            radius={storyOverlay.radius}
+            fillOpacity={storyOverlay.fillOpacity}
+          />
         )}
         {storyAnnotations && storyAnnotations.length > 0 && (
           <StoryAnnotationLayer annotations={storyAnnotations} />
@@ -871,6 +922,7 @@ export default function WhaleMap({
           onMouseOut={handleMouseOut}
           onClick={handleClick}
           pinHighlight={pinHighlight}
+          pinColorFor={pinColorFor}
         />
       </MapContainer>
 

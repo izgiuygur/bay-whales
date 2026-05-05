@@ -999,6 +999,15 @@ body {
   padding: 0 14px;
 }
 
+/* The scroll wrap is the positioning context for the chevron buttons
+   that flank the rail. It expands to fill the available rail width
+   between the kicker and the right edge. */
+.patterns-rail-scroll-wrap {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .patterns-rail-inner {
   display: flex;
   align-items: center;
@@ -1006,26 +1015,76 @@ body {
   overflow-x: auto;
   scrollbar-width: none;
   -ms-overflow-style: none;
-  /* Faded scroll edges hint at horizontal scrollability when the row
-     overflows. No background container — the pills float directly
-     on the map / page. */
+  /* Edge-fade mask. Widths are CSS variables set inline by React
+     based on whether there's more content to scroll toward in that
+     direction — at the start `--fade-left: 0px` (no mask), once the
+     user scrolls right `--fade-left: 24px` (left edge fades). Same
+     pattern on the right. */
   mask-image: linear-gradient(
     to right,
     transparent 0,
-    #000 16px,
-    #000 calc(100% - 16px),
+    #000 var(--fade-left, 0px),
+    #000 calc(100% - var(--fade-right, 0px)),
     transparent 100%
   );
   -webkit-mask-image: linear-gradient(
     to right,
     transparent 0,
-    #000 16px,
-    #000 calc(100% - 16px),
+    #000 var(--fade-left, 0px),
+    #000 calc(100% - var(--fade-right, 0px)),
     transparent 100%
   );
   padding: 4px 18px;
 }
 .patterns-rail-inner::-webkit-scrollbar { display: none; }
+
+/* Chevron buttons flanking the rail. Desktop-only, fade in only
+   when there's more content in that direction. Subtle by default;
+   hover gives a slight lift + brand-blue color so they read as
+   interactive without competing with the pills. */
+.patterns-rail-chevron {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border: 1px solid rgba(0, 81, 186, 0.2);
+  border-radius: 50%;
+  color: rgba(0, 81, 186, 0.7);
+  font-size: 18px;
+  line-height: 1;
+  font-family: var(--font);
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  transition:
+    color 160ms ease-out,
+    border-color 160ms ease-out,
+    background-color 160ms ease-out,
+    transform 160ms ease-out,
+    opacity 160ms ease-out;
+  opacity: 0;
+  /* Brief fade-in keyed off the React-controlled mount/unmount. */
+  animation: patterns-rail-chevron-in 200ms ease-out forwards;
+}
+.patterns-rail-chevron--left  { left: -10px; }
+.patterns-rail-chevron--right { right: -10px; }
+.patterns-rail-chevron:hover,
+.patterns-rail-chevron:focus-visible {
+  color: var(--story-blue);
+  border-color: var(--story-blue);
+  background: var(--story-blue-tint);
+  outline: none;
+  transform: translateY(-50%) scale(1.06);
+}
+@keyframes patterns-rail-chevron-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
 
 .pattern-pill {
   flex-shrink: 0;
@@ -1141,16 +1200,10 @@ body {
 
 /* When a story is active, the inactive (non-selected) pills dim
    slightly so the active one reads as "current". */
-/* Story mode: lock the carousel from manual scrolling (drag, wheel,
-   swipe). The active pill is the focal point — letting the user
-   scroll it offscreen would lose that anchor. Programmatic
-   scrollIntoView still works (browsers honor it regardless of
-   overflow:hidden / overscroll-behavior). */
-.patterns-rail--story-active .patterns-rail-inner {
-  overflow-x: hidden;
-  overscroll-behavior-x: none;
-  touch-action: pan-y;
-}
+/* Story mode: scrolling the rail is now allowed (it's a viewing
+   action, not a state-modifying one — same logic that keeps map
+   pan/zoom interactive). Inactive pills still dim so the active
+   one reads as the focal point regardless of scroll position. */
 .patterns-rail--story-active .pattern-pill:not(.is-active) {
   opacity: 0.55;
 }
@@ -1283,6 +1336,20 @@ body {
 .m-root--story-mode .m-year-strip *,
 .m-root--story-mode .m-header-filter-btn * {
   cursor: not-allowed !important;
+}
+
+/* Stories with `keepTimelineActive: true` opt the timeline (desktop)
+   and year strip (mobile) out of the story-mode lock — the year-axis
+   IS the visual, so it stays at full opacity and remains clickable.
+   These selectors override the locked state above via specificity. */
+.app--story-mode.app--story-keeps-timeline .timeline,
+.m-root--story-mode.m-root--story-keeps-timeline .m-year-strip {
+  opacity: 1;
+  pointer-events: auto;
+}
+.app--story-mode.app--story-keeps-timeline .timeline *,
+.m-root--story-mode.m-root--story-keeps-timeline .m-year-strip * {
+  cursor: pointer !important;
 }
 
 /* Drawer in story mode: open/close still works (rail-collapsed and
@@ -1446,10 +1513,26 @@ body {
   .pattern-caption,
   .m-minimap-patterns-hint,
   .m-minimap-patterns-hint-arrow,
-  .story-annotation {
+  .story-annotation,
+  .timeline-vmarker,
+  .m-year-chip-marker,
+  .patterns-rail-chevron {
     animation: none !important;
   }
+  /* Keep the chevrons visible at their resting state under reduced
+     motion (the keyframe sets opacity: 0 → 1, so disabling animation
+     would leave them at 0). */
+  .patterns-rail-chevron,
+  .m-year-strip-chevron {
+    opacity: 1;
+    animation: none !important;
+  }
+  .patterns-rail-inner,
+  .m-year-strip {
+    scroll-behavior: auto;
+  }
 }
+
 
 /* Bottom-right attribution. Two stacked lines (data on top, basemap
    below), equal visual weight. The translucent gradient strip below
@@ -1920,6 +2003,90 @@ body {
   font-weight: 700;
 }
 
+/* Heatwave / per-year markers — drawn ONLY while a pattern with
+   `yearMarkers` is active (e.g. "Warm seas, more deaths"). Sit
+   between the count bar and the year label so they read as
+   companion data, not as part of the bar itself. Size + saturation
+   encode intensity. Single warm-orange hue. */
+.timeline-vmarker {
+  position: absolute;
+  /* Sit between the count bar (whose right edge is at 100% - 62px)
+     and the year label (whose left edge is at 100% - 42px). At 24px
+     the strong marker overlaps the faint bar slightly — visually
+     fine because the bar is 2.5px tall and the marker dominates. */
+  left: calc(100% - 60px);
+  top: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  pointer-events: auto;
+  cursor: help;
+  animation: vmarker-in 320ms ease-out backwards;
+}
+.timeline-vmarker--mild {
+  width: 12px;
+  height: 12px;
+  /* Burgundy-gradient palette matched to HEATWAVE_INTENSITY_COLOR
+     in src/data/patterns.ts. Edits here MUST be mirrored there to
+     keep timeline blobs and map pins in lockstep. */
+  background: #E8C2CD;
+}
+.timeline-vmarker--medium {
+  width: 18px;
+  height: 18px;
+  background: #C0728A;
+}
+.timeline-vmarker--strong {
+  width: 24px;
+  height: 24px;
+  background: #8B2E4A;
+}
+@keyframes vmarker-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+/* Mobile year-chip variant: marker sits ABOVE the chip (negative
+   top), centered horizontally, so it never overlaps the year label
+   or the count bar. The .m-year-strip parent has overflow-y:
+   visible by default, so markers extending above the chip box
+   render cleanly. */
+.m-year-chip-marker {
+  position: absolute;
+  top: -16px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  pointer-events: none;
+  animation: vmarker-in-mobile 320ms ease-out backwards;
+}
+@keyframes vmarker-in-mobile {
+  /* Composed transform: keep the translateX(-50%) horizontal centering
+     applied via the static rule, then apply scale on top. */
+  from { opacity: 0; transform: translateX(-50%) scale(0.5); }
+  to   { opacity: 1; transform: translateX(-50%) scale(1); }
+}
+.m-year-chip-marker--mild {
+  width: 9px;
+  height: 9px;
+  background: #E8C2CD;
+}
+.m-year-chip-marker--medium {
+  width: 13px;
+  height: 13px;
+  background: #C0728A;
+}
+.m-year-chip-marker--strong {
+  width: 17px;
+  height: 17px;
+  background: #8B2E4A;
+}
+
 /* ── Site footer (desktop) ──
    A compact single-line attribution that sits below the map. Tries
    to stay on one line at desktop widths; wraps gracefully if not. */
@@ -2368,12 +2535,58 @@ body.bws-skipping .whale-pin {
 
 /* Year strip ───────────────────────────────────────── */
 
-.m-year-strip {
+/* Wrap is the positioning context for the chevron buttons. */
+.m-year-strip-wrap {
+  position: relative;
   margin-top: 14px;
-  padding: 0 14px;
+}
+
+.m-year-strip {
+  /* Top padding gives the heatwave markers (positioned at -16px
+     above each chip, used by the warm-seas story) room to render
+     inside the scroll container's padding box. Without it, the
+     overflow-x: auto cascades to overflow-y: auto and clips the
+     markers. The padding is harmless when no markers render — just
+     a few extra px above the chips. */
+  padding: 20px 14px 0;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
+}
+
+/* Chevron buttons flanking the year strip. Same visual language as
+   the patterns-rail chevrons but positioned to vertically center
+   on the year-chip column (the chip is taller than the rail pill). */
+.m-year-strip-chevron {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border: 1px solid rgba(0, 81, 186, 0.2);
+  border-radius: 50%;
+  color: rgba(0, 81, 186, 0.7);
+  font-size: 18px;
+  line-height: 1;
+  font-family: var(--font);
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  opacity: 0;
+  animation: patterns-rail-chevron-in 200ms ease-out forwards;
+}
+.m-year-strip-chevron--left  { left: 4px; }
+.m-year-strip-chevron--right { right: 4px; }
+.m-year-strip-chevron:hover,
+.m-year-strip-chevron:focus-visible {
+  color: var(--story-blue);
+  border-color: var(--story-blue);
+  background: var(--story-blue-tint);
+  outline: none;
 }
 
 .m-year-strip::-webkit-scrollbar {
@@ -2402,6 +2615,8 @@ body.bws-skipping .whale-pin {
   border: none;
   cursor: pointer;
   min-width: 44px;
+  /* Positioning context for the optional heatwave marker. */
+  position: relative;
 }
 
 .m-year-chip-label {

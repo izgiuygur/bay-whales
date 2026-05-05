@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import type { YearRange } from "../App";
+import type { YearMarker } from "../data/patterns";
 
 interface Props {
   min: number;
@@ -7,6 +8,9 @@ interface Props {
   value: YearRange;
   onChange: (range: YearRange) => void;
   yearCounts: Record<number, number>;
+  /** Optional per-year decorations (e.g. heatwave blobs). Story-
+   *  scoped — only set while a pattern with `yearMarkers` is active. */
+  yearMarkers?: YearMarker[];
 }
 
 export default function TimelineSlider({
@@ -15,7 +19,15 @@ export default function TimelineSlider({
   value,
   onChange,
   yearCounts,
+  yearMarkers,
 }: Props) {
+  // Lookup year → marker for fast per-row access. Memoized so the
+  // map isn't rebuilt on every render.
+  const markerByYear = useMemo(() => {
+    const m = new Map<number, YearMarker>();
+    if (yearMarkers) for (const k of yearMarkers) m.set(k.year, k);
+    return m;
+  }, [yearMarkers]);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const [dragStartIdx, setDragStartIdx] = useState<number | null>(null);
   const [dragCurrentIdx, setDragCurrentIdx] = useState<number | null>(null);
@@ -184,6 +196,15 @@ export default function TimelineSlider({
               >
                 {labelText}
               </span>
+              {y !== null && markerByYear.has(y) && (
+                <span
+                  className={`timeline-vmarker timeline-vmarker--${
+                    markerByYear.get(y)!.intensity
+                  }`}
+                  aria-hidden="true"
+                  title={markerByYear.get(y)!.label}
+                />
+              )}
             </div>
           );
         })}

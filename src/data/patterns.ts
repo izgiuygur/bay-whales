@@ -37,7 +37,19 @@ export type PatternIcon =
   | "spike"
   | "magnifier"
   | "info"
-  | "question";
+  | "question"
+  | "thermometer";
+
+/** Per-year decoration drawn on the year strip / timeline while a
+ *  pattern is active. Used by the marine-heatwave story to mark
+ *  heatwave years with size-encoded blobs. Story-scoped: hidden in
+ *  default explore mode. */
+export interface YearMarker {
+  year: number;
+  intensity: "mild" | "medium" | "strong";
+  /** Hover tooltip. e.g. "Marine heatwave: 2015 — strong (Blob peak)" */
+  label?: string;
+}
 
 export type PatternOverlay =
   | {
@@ -49,7 +61,22 @@ export type PatternOverlay =
       type: "corridor";
       geometry: GeoJSON.LineString | GeoJSON.Polygon;
     }
-  | { type: "heatmap" }
+  | {
+      type: "heatmap";
+      /** Uniform halo fill color. Defaults to brand blue. */
+      color?: string;
+      /** Per-record halo color picker. When set, takes precedence
+       *  over `color`. Use this when halo color should encode an
+       *  attribute of the record (e.g. intensity-by-year for
+       *  warm-seas → halo color matches the timeline blob). */
+      colorFor?: (r: WhaleRecord) => string;
+      /** Per-pin halo radius in meters. Larger values produce more
+       *  cluster overlap / accumulation. Default 600. */
+      radius?: number;
+      /** Per-pin halo fill opacity. Lower values let overlapping
+       *  halos accumulate more visibly. Default 0.14. */
+      fillOpacity?: number;
+    }
   | {
       type: "pin-recolor";
       /** Predicate evaluated per-record; true = highlighted (story-blue),
@@ -112,12 +139,37 @@ export interface PatternEntry {
   /** Optional map annotations (named landmarks, refineries, etc.).
    *  Render above the overlay polygon but below pins. */
   annotations?: PatternAnnotation[];
+  /** Optional per-year markers drawn on the year strip / timeline
+   *  while the story is active. Used to overlay temporal context
+   *  (e.g. marine heatwave years) on top of the stranding counts. */
+  yearMarkers?: YearMarker[];
+  /** Optional per-record pin color override. Returns the hex color
+   *  used for that record's pin while the story is active. Takes
+   *  precedence over the species-default color but NOT over the
+   *  black "selected" pin. Story-scoped — pins revert to species
+   *  colors when the story closes. */
+  pinColorFor?: (r: WhaleRecord) => string;
   /** Optional human-readable summary chip for the upper-right card.
    *  When set, replaces the auto-generated chip list (e.g. "Marin"
    *  + comma-separated others) with a single editorial label like
    *  "Rare species" or "Confirmed human interaction". The year range
    *  prefix and stranding count stay auto-generated. */
   summaryOverride?: string;
+  /** Optional replacement for the year-range portion of the summary
+   *  line. Default behavior renders something like "2005–2025" or
+   *  "2018–2025" derived from selectedRange. Use this when the
+   *  story's "year scope" isn't a contiguous range — e.g.
+   *  "9 marine heatwave years". Combined with `summaryOverride` this
+   *  gives full editorial control over the line. */
+  summaryYearLabel?: string;
+  /** When true, this story does NOT apply its predicate / clipPins
+   *  to the year-strip count bars (so the bars show every year's
+   *  raw count for context), AND the timeline stays at full
+   *  contrast + interactive while the story is active. Used by
+   *  stories whose value comes from comparing the filtered map
+   *  pins against the un-filtered year-distribution — the warm-seas
+   *  story is the canonical case. */
+  keepTimelineActive?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -218,6 +270,102 @@ const SF_BAY_POLYGON: GeoJSON.Polygon = {
 // shape in favor of letting the clustered pins + named annotations
 // carry the visual.)
 
+// Years used by the warm-seas story's record predicate. Single source
+// of truth — the year-marker list below uses the same year set with
+// per-year intensity classifications.
+//
+// Source: NOAA Integrated Ecosystem Assessment, California Current
+// Marine Heatwave Tracker
+//   https://www.integratedecosystemassessment.noaa.gov/regions/california-current/california-current-marine-heatwave-tracker-blobtracker
+//
+// Heatwave definition (per the IEA tracker):
+//   "Blob-Class" MHW = strength > 1.29 SD of the SSTa field
+//   (top 90%, consistent with Hobday et al. 2016) AND area
+//   > 400,000 km².
+//
+// Region: California Current Large Marine Ecosystem (~32–42°N,
+//         116–126°W).
+//
+// Climatology baseline: not explicitly published on the IEA tracker
+// page. ERDDAP-derived OISST v2.1 annual anomalies typically use
+// 1991–2020. Per-year average anomaly values would require a one-off
+// ERDDAP pull (out of scope here); intensity classifications below
+// are based on documented event extents and named-event records.
+//
+// Year-by-year notes:
+//   2014, 2015, 2016 — "The Blob" event. 2015 was the regional peak
+//                      (~+3°C anomaly mean across CC; localized
+//                      peaks 5–6°C per Gentemann et al. 2017).
+//   2019           — "Blob 2.0" — among the largest on record.
+//   2020           — Smaller heatwave; La Niña context.
+//   2021           — "Southern Blob" — among the largest.
+//   2022, 2023, 2024 — Sustained large heatwaves (IEA: each of
+//                       2019–2025 had MHW activity in the CC).
+//   2025           — NEP25A — record-setting.
+//
+// 2025 / NEP25A claims — verified verbatim against the IEA tracker
+// page (URL above) on 2026-05-04:
+//
+//   • Designation:
+//     "Large portions of the coastal region along the US west coast,
+//      particularly off central and southern California, continue to
+//      be impacted by the large marine heatwave NEP25A … which we
+//      have tracked since May 2025."
+//
+//   • Peak area + record claim:
+//     "NEP25A reached a maximum size of ~10 Million km^2 on Sept. 10,
+//      2025, setting a record for largest maximum area for a marine
+//      heatwave within the Northeast Pacific region analyzed here …
+//      since monitoring began in 1982."
+//
+// "NEP25A" is the official NOAA IEA event designation; the 10M km²
+// peak and the "largest since 1982" claim are both directly published
+// by NOAA, not inferred. No softening required.
+const HEATWAVE_YEARS = new Set<number>([
+  2014, 2015, 2016, 2019, 2020, 2021, 2022, 2023, 2024, 2025,
+]);
+
+// Intensity-to-color table — three-tone burgundy gradient where
+// deeper = stronger heatwave. Used by BOTH the timeline blobs (CSS)
+// and the map pin colors (Leaflet markers via pinColorFor) so the
+// on-strip and on-map encodings reinforce each other.
+//
+// Tones tuned for ~23–24 L-point gaps between tiers so individual
+// pins on the map read as clearly different tiers — same separation
+// principle as the rust/coral/peach palette this replaced, just in
+// a more somber rose-burgundy register that fits the "elegy for
+// whales" tone better than fashion-pink or fresh-orange:
+//
+//   strong  #8B2E4A  — deep burgundy (HSL ≈ 345° 50% 37%)
+//   medium  #C0728A  — dusty rose (HSL ≈ 345° 36% 60%)
+//   mild    #E8C2CD  — pale rose (HSL ≈ 345° 47% 84%)
+//
+// Alternatives to swap in if a different gravity is wanted (each
+// derives medium/mild similarly):
+//   wine     strong = #A0344A (lighter, more visible)
+//   mulberry strong = #5E2A4F (grimmer, more monochrome)
+//
+// If you change these, also update the size-color visual coupling
+// in the user-facing legend ("Larger blobs = stronger heatwave;
+// hover for event details").
+const HEATWAVE_INTENSITY_COLOR: Record<YearMarker["intensity"], string> = {
+  mild: "#E8C2CD",
+  medium: "#C0728A",
+  strong: "#8B2E4A",
+};
+const HEATWAVE_YEAR_INTENSITY: Record<number, YearMarker["intensity"]> = {
+  2014: "medium",
+  2015: "strong",
+  2016: "medium",
+  2019: "strong",
+  2020: "mild",
+  2021: "strong",
+  2022: "medium",
+  2023: "medium",
+  2024: "medium",
+  2025: "strong",
+};
+
 // Regex used by the corridor story's record predicate. Word-boundary
 // "berth N" form to avoid the "wide berth" nautical idiom; explicit
 // rejection of "chevron, caudal" (anatomical reference, not the
@@ -279,8 +427,71 @@ export const PATTERNS: PatternEntry[] = [
       months: [3, 4, 5, 6],
     },
     mapView: { center: [37.85, -122.42], zoom: 10.5 },
-    overlay: { type: "heatmap" },
+    // No overlay — the 17 filtered pins themselves cluster visibly
+    // enough at this zoom level to carry the "spring 2025 spike"
+    // story without an extra heatmap layer underneath.
+    overlay: { type: "none" },
     clipPins: SF_BAY_POLYGON,
+  },
+  {
+    slug: "warm-seas",
+    type: "pattern",
+    icon: "thermometer",
+    headline: "Warm seas, more strandings",
+    subhead:
+      "Stranding spikes follow marine heatwaves in the California Current.",
+    // Caption count "(151 of 216)" matches the predicate's yield
+    // under the 10-year heatwave list (per NOAA IEA, each of
+    // 2019–2025 had MHW activity in the CC, plus The Blob 2014–2016).
+    // Verified against live data 2026-05-04 = 151/216 = 69.9%.
+    caption:
+      "Stranding spikes tend to follow marine heatwaves in the California Current. About 70% of all strandings in this dataset (151 of 216) happened during ten heatwave years that account for nearly half the time period. The \"Blob\" of 2014–2016 (peaking around +3°C above baseline regionally, with local peaks 5–6°C) preceded a jump from a baseline of ~4 strandings per year to 13–14. Large heatwaves recurred annually 2019–2025; the 2025 event (NEP25A) set a record for largest area in the Northeast Pacific since monitoring began in 1982. The link isn't perfectly linear — strandings lag SST changes by months, and other factors matter (Arctic feeding, gray whale population dynamics) — but the pattern holds: warmer seas, more strandings. Larger blobs indicate stronger heatwave conditions; hover for event details.",
+    link: {
+      label: "NOAA: California Current marine heatwaves",
+      url: "https://www.fisheries.noaa.gov/topic/climate-change/california-current-marine-heatwaves",
+    },
+    // No structured filter dimension fits a non-contiguous list of
+    // years, so the predicate handles it. Years not in this set are
+    // dropped from `filtered` (and from yearCounts, since yearCounts
+    // honors recordPredicate).
+    filters: {},
+    recordPredicate: (r) =>
+      HEATWAVE_YEARS.has(r.year),
+    // Default Bay Area extent.
+    mapView: { center: [37.7, -122.3], zoom: 9 },
+    // No on-map editorial overlay — pins-only. Pin COLOR carries the
+    // intensity story via pinColorFor below.
+    overlay: { type: "none" },
+    // Each pin's color encodes its year's heatwave intensity, using
+    // the same pink palette as the timeline blobs. Records outside
+    // the heatwave year set won't reach this layer (the predicate
+    // filters them) but we fall back to medium defensively.
+    pinColorFor: (r) =>
+      HEATWAVE_INTENSITY_COLOR[HEATWAVE_YEAR_INTENSITY[r.year] ?? "medium"],
+    summaryYearLabel: "10 marine heatwave years",
+    summaryOverride: "All species",
+    // The whole point of the visual is comparing heatwave-year bar
+    // height to non-heatwave-year bar height — so the year strip
+    // must show ALL records, not just the predicate-filtered ones.
+    // Also keeps the timeline interactive so users can poke at it.
+    keepTimelineActive: true,
+    // Per-year heatwave classifications drawn from the same NOAA IEA
+    // sources documented above. Tooltip labels include the named
+    // event where one exists. Numeric anomaly values are intentionally
+    // not fabricated where authoritative annual means weren't pulled —
+    // see the HEATWAVE_YEARS comment block for what would source them.
+    yearMarkers: [
+      { year: 2014, intensity: "medium", label: "2014 — The Blob begins (medium intensity; peak ~+2.5°C anomaly Feb 2014)" },
+      { year: 2015, intensity: "strong", label: "2015 — The Blob peak (strong; regional ~+3°C, local 5–6°C)" },
+      { year: 2016, intensity: "medium", label: "2016 — The Blob waning (medium)" },
+      { year: 2019, intensity: "strong", label: "2019 — \"Blob 2.0\" (strong; among largest on record)" },
+      { year: 2020, intensity: "mild", label: "2020 — Mild heatwave (La Niña context)" },
+      { year: 2021, intensity: "strong", label: "2021 — \"Southern Blob\" (strong; among largest)" },
+      { year: 2022, intensity: "medium", label: "2022 — Sustained heatwave (medium)" },
+      { year: 2023, intensity: "medium", label: "2023 — Sustained heatwave (medium; UME ends, lingering warmth)" },
+      { year: 2024, intensity: "medium", label: "2024 — Sustained heatwave (medium)" },
+      { year: 2025, intensity: "strong", label: "2025 — NEP25A (strong; record-setting, largest NEP MHW area since 1982)" },
+    ],
   },
   {
     slug: "industrial-corridor",
@@ -404,15 +615,9 @@ export const PATTERNS: PatternEntry[] = [
     overlay: { type: "blob", geometry: SF_BAY_POLYGON },
     clipPins: SF_BAY_POLYGON,
   },
-  // ---------------------------------------------------------------------
-  // Methodology pills — meta-observations about how the data was
-  // collected. Visually quieter (outlined / dashed pills); all use the
-  // pin-recolor overlay so the proportion or location of the
-  // highlighted pins is the story.
-  // ---------------------------------------------------------------------
   {
     slug: "species-mix-narrowed",
-    type: "methodology",
+    type: "pattern",
     icon: "magnifier",
     headline: "Species mix has narrowed",
     subhead:
@@ -441,6 +646,12 @@ export const PATTERNS: PatternEntry[] = [
     overlay: { type: "none" },
     summaryOverride: "Rare species",
   },
+  // ---------------------------------------------------------------------
+  // Methodology pills — meta-observations about how the data was
+  // collected. Visually quieter (outlined / dashed pills); all use
+  // filter-based behavior so the upper-right summary updates when the
+  // pill activates, just like the pattern stories.
+  // ---------------------------------------------------------------------
   {
     slug: "marin-monitored",
     type: "methodology",

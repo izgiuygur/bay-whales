@@ -102,7 +102,15 @@ export default function MobileLayout(props: Props) {
   }, []);
 
   return (
-    <div className={`m-root ${activeStory ? "m-root--story-mode" : ""}`}>
+    <div
+      className={[
+        "m-root",
+        activeStory ? "m-root--story-mode" : "",
+        activeStory?.keepTimelineActive ? "m-root--story-keeps-timeline" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
       <MobileHeader
         filters={filters}
         onOpenFilters={() => setFiltersOpen(true)}
@@ -119,6 +127,7 @@ export default function MobileLayout(props: Props) {
         yearCounts={yearCounts}
         value={selectedRange}
         onChange={onYearChange}
+        yearMarkers={activeStory?.yearMarkers}
       />
 
       <SpeciesStrip

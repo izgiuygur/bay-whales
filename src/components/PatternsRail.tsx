@@ -81,6 +81,15 @@ function Icon({ name }: { name: PatternEntry["icon"] }) {
           <path d="M9.5 9a2.5 2.5 0 015 0c0 1.5-2.5 2-2.5 4M12 17h.01" />
         </svg>
       );
+    case "thermometer":
+      // Thermometer with a filled bulb — reads as "heat / temperature"
+      // at 14px. Two strokes: bulb circle + stem with cap.
+      return (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M14 14V4a2 2 0 00-4 0v10a4 4 0 104 0z" />
+          <circle cx="12" cy="17.5" r="1.6" fill="currentColor" stroke="none" />
+        </svg>
+      );
     default:
       return null;
   }
@@ -143,10 +152,10 @@ export default function PatternsRail({
   );
   const handleRailMouseMove = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
-      // While a story is active the rail is locked: no edge auto-scroll,
-      // because the active pill is the focal point and we don't want it
-      // sliding away from center.
-      if (activeSlug) return stopAutoScroll();
+      // Edge-hover scroll runs in BOTH default and story modes —
+      // browsing other patterns without exiting the current story is
+      // a viewing action, not a state-modifying one. (Same logic that
+      // keeps map pan/zoom interactive during stories.)
       const el = innerRef.current;
       if (!el) return;
       // No overflow → nothing to scroll, bail.
@@ -160,8 +169,45 @@ export default function PatternsRail({
       else if (x > rect.width - edgeSize && !atRight) startAutoScroll(1);
       else stopAutoScroll();
     },
-    [activeSlug, startAutoScroll, stopAutoScroll]
+    [startAutoScroll, stopAutoScroll]
   );
+
+  // Track whether each side of the rail has more content to scroll
+  // toward. Drives chevron-button visibility and the conditional
+  // edge-fade gradient. Updated on scroll, on resize, and when the
+  // pattern list changes (rare, but `PATTERNS` could be edited).
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+  const updateScrollAffordances = useCallback(() => {
+    const el = innerRef.current;
+    if (!el) return;
+    const hasOverflow = el.scrollWidth > el.clientWidth + 1;
+    const atLeft = el.scrollLeft <= 0;
+    const atRight = el.scrollLeft + el.clientWidth >= el.scrollWidth - 1;
+    setCanScrollLeft(hasOverflow && !atLeft);
+    setCanScrollRight(hasOverflow && !atRight);
+  }, []);
+  useEffect(() => {
+    updateScrollAffordances();
+    const el = innerRef.current;
+    if (!el) return;
+    el.addEventListener("scroll", updateScrollAffordances, { passive: true });
+    const ro = new ResizeObserver(updateScrollAffordances);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener("scroll", updateScrollAffordances);
+      ro.disconnect();
+    };
+  }, [updateScrollAffordances]);
+
+  // Chevron click → smooth-scroll by ~2.5 pill widths in that
+  // direction. The browser respects prefers-reduced-motion natively
+  // when smooth scroll is requested, so no extra carve-out needed.
+  const scrollByPills = useCallback((direction: -1 | 1) => {
+    const el = innerRef.current;
+    if (!el) return;
+    el.scrollBy({ left: direction * 320, behavior: "smooth" });
+  }, []);
 
   // When a story becomes active (or the user switches stories), smooth-
   // scroll the active pill so it sits centered in the rail viewport.
@@ -220,13 +266,35 @@ export default function PatternsRail({
       >
         Patterns
       </button>
-      <div
-        className="patterns-rail-inner"
-        ref={innerRef}
-        onMouseMove={handleRailMouseMove}
-        onMouseLeave={stopAutoScroll}
-      >
-        {PATTERNS.map((p) => {
+      <div className="patterns-rail-scroll-wrap">
+        {/* Chevron — left. Renders on both desktop and mobile so the
+            user has a tap target for scrolling, only when there's
+            content to scroll left toward. */}
+        {canScrollLeft && (
+          <button
+            type="button"
+            className="patterns-rail-chevron patterns-rail-chevron--left"
+            onClick={() => scrollByPills(-1)}
+            aria-label="Scroll patterns rail left"
+          >
+            ‹
+          </button>
+        )}
+        <div
+          className="patterns-rail-inner"
+          ref={innerRef}
+          onMouseMove={handleRailMouseMove}
+          onMouseLeave={stopAutoScroll}
+          // Drive the edge-fade mask via CSS variables — width of
+          // each fade is 0 when at that boundary, 24px otherwise.
+          style={
+            {
+              "--fade-left": canScrollLeft ? "24px" : "0px",
+              "--fade-right": canScrollRight ? "24px" : "0px",
+            } as React.CSSProperties
+          }
+        >
+          {PATTERNS.map((p) => {
           const isActive = activeSlug === p.slug;
           const ariaLabelPrefix =
             p.type === "pattern" ? "Pattern" : "Methodology note";
@@ -266,6 +334,19 @@ export default function PatternsRail({
             </button>
           );
         })}
+        </div>
+        {/* Chevron — right. Renders on both desktop and mobile when
+            there's more content to the right. */}
+        {canScrollRight && (
+          <button
+            type="button"
+            className="patterns-rail-chevron patterns-rail-chevron--right"
+            onClick={() => scrollByPills(1)}
+            aria-label="Scroll patterns rail right"
+          >
+            ›
+          </button>
+        )}
       </div>
     </div>
   );
