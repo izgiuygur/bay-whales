@@ -3393,3 +3393,272 @@ body.bws-skipping .whale-pin {
   background: #003e8f;
 }
 
+
+/* =====================================================================
+   Embed mode — served at /embed for <iframe> partners. Slimmed-down
+   layout with: compact header + "Open full map" link, full-bleed map,
+   floating species filter + count, vertical timeline, story caption,
+   and a single-line credit at the bottom. Reuses the desktop map +
+   timeline + caption components verbatim; only the shell changes.
+   ===================================================================== */
+
+.embed-root {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  font-family: var(--font);
+  color: #1a1a1a;
+}
+
+.embed-loading {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  font-family: var(--font);
+  color: #888;
+  font-size: 13px;
+}
+.embed-loading-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid rgba(0, 81, 186, 0.18);
+  border-top-color: #0051BA;
+  border-radius: 50%;
+  animation: embed-spin 700ms linear infinite;
+}
+@keyframes embed-spin {
+  to { transform: rotate(360deg); }
+}
+
+.embed-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  background: #fff;
+  z-index: 10;
+}
+
+.embed-title {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #1a1a1a;
+}
+
+.embed-open-full {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--story-blue);
+  text-decoration: none;
+  padding: 6px 12px;
+  border: 1px solid rgba(0, 81, 186, 0.25);
+  border-radius: 6px;
+  transition:
+    background-color 160ms ease-out,
+    border-color 160ms ease-out,
+    color 160ms ease-out;
+  white-space: nowrap;
+}
+.embed-open-full:hover,
+.embed-open-full:focus-visible {
+  background: var(--story-blue);
+  border-color: var(--story-blue);
+  color: #fff;
+  outline: none;
+}
+
+.embed-main {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* The map fills the main area. WhaleMap's own .map-container has
+   absolute positioning so we just need to scope it. */
+.embed-main .map-container,
+.embed-main .leaflet-map {
+  position: absolute;
+  inset: 0;
+}
+
+.embed-controls {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  z-index: 460;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+  pointer-events: none;
+}
+.embed-controls > * {
+  pointer-events: auto;
+}
+
+.embed-count {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #333;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+.embed-count strong {
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+/* Embed-scoped tweaks to the reused components. */
+.embed-main .species-filter {
+  /* Override the base SpeciesFilter's centered-absolute positioning
+     (top: 12px; left: 50%; transform: translateX(-50%)) — in embed
+     mode it flows inline within .embed-controls. */
+  position: static;
+  transform: none;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  /* Give it a width so wrapping kicks in correctly inside the
+     column-flex embed-controls. */
+  width: min(70vw, 520px);
+}
+.embed-main .timeline {
+  /* Pull the timeline closer to the right edge for the slim shell. */
+  right: 10px;
+  height: calc(100% - 24px);
+  min-height: 280px;
+}
+.embed-main .pattern-caption {
+  /* Bottom-left anchor matches the full site. Close button stays
+     visible — clicking it returns the embed to its default view. */
+  bottom: 12px;
+  left: 12px;
+  max-width: clamp(240px, 30vw, 340px);
+}
+
+/* Featured-story pills bar — sits between the map and the credit.
+   Three hand-picked stories that the embed exposes; clicking one
+   activates it, clicking the active pill again closes it. */
+.embed-stories {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  padding: 10px 16px;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  background: #fff;
+}
+.embed-story-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: #fff;
+  border: 1px solid rgba(0, 81, 186, 0.28);
+  color: rgba(0, 81, 186, 0.85);
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background-color 160ms ease-out,
+    color 160ms ease-out,
+    border-color 160ms ease-out;
+}
+.embed-story-pill:hover,
+.embed-story-pill:focus-visible {
+  color: var(--story-blue);
+  border-color: var(--story-blue);
+  background: rgba(0, 81, 186, 0.06);
+  outline: none;
+}
+.embed-story-pill.is-active {
+  background: var(--story-blue);
+  border-color: var(--story-blue);
+  color: #fff;
+}
+.embed-story-pill.is-active:hover {
+  background: var(--story-blue-deep);
+  border-color: var(--story-blue-deep);
+}
+.embed-story-pill-arrow {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.embed-credit {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 16px;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  background: #fff;
+  font-size: 11px;
+  color: #888;
+}
+.embed-credit a {
+  color: #555;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+.embed-credit a:hover {
+  color: var(--story-blue);
+  border-bottom-color: currentColor;
+}
+
+/* Narrow embed: shrink the caption so the map stays the focal
+   point. The map itself is fine because Leaflet adapts. */
+@media (max-width: 560px) {
+  .embed-title {
+    font-size: 11px;
+  }
+  .embed-open-full {
+    font-size: 11px;
+    padding: 5px 10px;
+  }
+  .embed-main .species-filter {
+    width: calc(100% - 24px);
+  }
+  .embed-main .pattern-caption {
+    bottom: 10px;
+    left: 10px;
+    right: 10px;
+    max-width: none;
+    /* Cap height so the map stays at least ~45% of the viewport.
+       Caption scrolls internally if its content exceeds the cap. */
+    max-height: 38vh;
+    overflow-y: auto;
+    padding: 10px 14px 10px 14px;
+  }
+  .embed-main .pattern-caption-title {
+    font-size: 14px;
+  }
+  .embed-main .pattern-caption-body {
+    font-size: 12px;
+    line-height: 1.45;
+  }
+  /* The vertical year timeline is wide on its own; pull it tighter
+     against the right edge on narrow screens. */
+  .embed-main .timeline {
+    width: 110px;
+    right: 4px;
+  }
+}

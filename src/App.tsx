@@ -13,6 +13,13 @@ import AboutDataModal from "./components/AboutDataModal";
 import PatternsRail from "./components/PatternsRail";
 import PatternCaption from "./components/PatternCaption";
 import MobileLayout from "./layouts/MobileLayout";
+import EmbedLayout from "./layouts/EmbedLayout";
+
+// Single source of truth for whether we're rendering the embed
+// variant — only checked at module load, no need to react to
+// pathname changes after mount.
+const IS_EMBED =
+  typeof window !== "undefined" && window.location.pathname === "/embed";
 import { useIsMobile, useMediaQuery } from "./lib/useMediaQuery";
 import { loadWhaleData } from "./data/whaleData";
 import type { WhaleRecord } from "./types/whale";
@@ -157,6 +164,15 @@ function matchesLocationConfidence(
 export type YearRange = { start: number; end: number } | null;
 
 export default function App() {
+  // Embed mode: served at /embed for <iframe> partners. Skips the
+  // full app's hero, header, drawer, patterns rail, and footer in
+  // favor of a slim layout focused on map + filter + featured story.
+  if (IS_EMBED) {
+    const initialStorySlug = new URLSearchParams(window.location.search).get(
+      "story"
+    );
+    return <EmbedLayout initialStorySlug={initialStorySlug} />;
+  }
   const [records, setRecords] = useState<WhaleRecord[]>([]);
   const [selectedRange, setSelectedRange] = useState<YearRange>(
     initialUrlState.year ?? null
