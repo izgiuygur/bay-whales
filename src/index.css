@@ -3551,16 +3551,33 @@ body.bws-skipping .whale-pin {
 
 /* Featured-story pills bar — sits between the map and the credit.
    Three hand-picked stories that the embed exposes; clicking one
-   activates it, clicking the active pill again closes it. */
+   activates it, clicking the active pill again closes it. A small
+   "Patterns" kicker label sits above the pills, matching the same
+   eyebrow treatment used on the full site so readers who click
+   "Open full map" feel oriented. */
 .embed-stories {
   flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px 12px;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  background: #fff;
+}
+.embed-stories-label {
+  font-family: var(--font);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--story-blue);
+}
+.embed-stories-pills {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   justify-content: center;
-  padding: 10px 16px;
-  border-top: 1px solid rgba(0, 0, 0, 0.05);
-  background: #fff;
 }
 .embed-story-pill {
   display: inline-flex;

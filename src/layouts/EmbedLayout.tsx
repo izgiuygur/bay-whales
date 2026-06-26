@@ -370,8 +370,12 @@ export default function EmbedLayout({
 
       {/* Three featured stories below the map. Clicking opens the
           story; clicking the active one again closes it. */}
-      <nav className="embed-stories" aria-label="Featured stories">
-        {featuredStories.map((p) => {
+      <nav className="embed-stories" aria-label="Featured patterns">
+        <div className="embed-stories-label" aria-hidden="true">
+          Patterns
+        </div>
+        <div className="embed-stories-pills">
+          {featuredStories.map((p) => {
           const isActive = activeStorySlug === p.slug;
           return (
             <button
@@ -389,6 +393,7 @@ export default function EmbedLayout({
             </button>
           );
         })}
+        </div>
       </nav>
 
       <footer className="embed-credit">
