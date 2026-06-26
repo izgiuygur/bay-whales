@@ -7,6 +7,10 @@
   "trailingSlash": false,
   "rewrites": [
     {
+      "source": "/embed",
+      "destination": "/index.html"
+    },
+    {
       "source": "/((?!.*\\.).*)",
       "destination": "/index.html"
     }
@@ -88,7 +92,7 @@
       ]
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!embed$).*)",
       "headers": [
         {
           "key": "X-Content-Type-Options",
