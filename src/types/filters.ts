@@ -94,7 +94,7 @@ export const FINDINGS = [
   "Vessel strike",
   "Entanglement / fishery",
   "Other human interaction",
-  "No human interaction reported",
+  "No confirmed human interaction",
   "Undetermined / CBD",
 ];
 

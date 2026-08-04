@@ -45,9 +45,12 @@ function matchesFindings(record: WhaleRecord, findings: Set<string>): boolean {
     record.fisheryInteraction !== "Y"
   )
     return true;
+  // "N" = human interaction explicitly ruled out (~26 records).
+  // Kept strict so it doesn't sweep in the 100 CBD records tracked
+  // by the separate "Undetermined" filter below.
   if (
-    findings.has("No human interaction reported") &&
-    record.humanInteraction !== "Y"
+    findings.has("No confirmed human interaction") &&
+    record.humanInteraction === "N"
   )
     return true;
   if (findings.has("Undetermined / CBD") && record.humanInteraction === "CBD")

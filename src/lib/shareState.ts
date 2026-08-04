@@ -57,7 +57,7 @@ const FINDINGS_SLUG: Record<string, string> = {
   "Vessel strike": "vessel",
   "Entanglement / fishery": "entanglement",
   "Other human interaction": "otherhuman",
-  "No human interaction reported": "nohuman",
+  "No confirmed human interaction": "nohuman",
   "Undetermined / CBD": "undetermined",
 };
 

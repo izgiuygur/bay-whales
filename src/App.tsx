@@ -140,9 +140,13 @@ function matchesFindings(record: WhaleRecord, findings: Set<string>): boolean {
     record.fisheryInteraction !== "Y"
   )
     return true;
+  // "N" is the network's explicit "human interaction ruled out" flag —
+  // only 26 records, and NOT overlapping with the CBD bucket below.
+  // (Previously this matched anything != "Y" and swept in all 100 CBD
+  // records too, which double-counted them against Undetermined.)
   if (
-    findings.has("No human interaction reported") &&
-    record.humanInteraction !== "Y"
+    findings.has("No confirmed human interaction") &&
+    record.humanInteraction === "N"
   )
     return true;
   if (
