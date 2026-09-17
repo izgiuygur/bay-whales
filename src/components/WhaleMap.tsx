@@ -840,8 +840,17 @@ export default function WhaleMap({
         {waterArea && (
           <>
             <TileLayer
-              url="https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png"
-              attribution='&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a>'
+              // ESRI World Light Gray Base. No API key / no domain
+              // registration required — chosen after CARTO started
+              // gating their tiles and Stadia's domain auth wouldn't
+              // authenticate. Note the {z}/{y}/{x} segment order:
+              // ESRI's REST tile service is row/col, not the x/y that
+              // most XYZ providers use.
+              // maxNativeZoom=16 because the service tops out there;
+              // Leaflet upscales z17–18 rather than requesting 404s.
+              url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+              maxNativeZoom={16}
+              attribution='Tiles &copy; <a href="https://www.esri.com/">Esri</a>'
             />
             <GeoJSON
               key="water-fill"

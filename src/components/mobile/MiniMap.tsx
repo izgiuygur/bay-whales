@@ -120,8 +120,9 @@ export default function MiniMap({
         zoomAnimation={false}
       >
         <TileLayer
-          url="https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png"
-          attribution='&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>'
+          url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+          maxNativeZoom={16}
+          attribution='Tiles &copy; <a href="https://www.esri.com/">Esri</a>'
         />
         <WaterLayer />
         <MiniMapPins records={records} onPinTap={onPinTap} />

@@ -812,19 +812,11 @@ export default function App() {
           <div className="map-attribution-line">
             Basemap{" "}
             <a
-              href="https://stadiamaps.com/"
+              href="https://www.esri.com/"
               target="_blank"
               rel="noopener noreferrer"
             >
-              © Stadia Maps
-            </a>
-            {" · "}
-            <a
-              href="https://openmaptiles.org/"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              © OpenMapTiles
+              © Esri
             </a>
             {" · "}
             <a
