@@ -812,11 +812,19 @@ export default function App() {
           <div className="map-attribution-line">
             Basemap{" "}
             <a
-              href="https://carto.com/attributions"
+              href="https://stadiamaps.com/"
               target="_blank"
               rel="noopener noreferrer"
             >
-              © CARTO
+              © Stadia Maps
+            </a>
+            {" · "}
+            <a
+              href="https://openmaptiles.org/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              © OpenMapTiles
             </a>
             {" · "}
             <a
